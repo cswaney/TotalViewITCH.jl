@@ -164,3 +164,16 @@ struct TradeMessage
     price::Int
     shares::Int
 end
+
+
+"""
+
+Write a list of messages to text file.
+"""
+function write(messages, path::String, group::String) end
+
+function write(message::Message)
+    
+end
+function write(message::TradeMessage) end
+function write(message::NOIIMessage) end

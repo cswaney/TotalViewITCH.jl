@@ -70,3 +70,12 @@ function update!(book::Book, message::Message)
         end
     end
 end
+
+
+"""
+
+Write a list of order book snapshots to a text file.
+"""
+function write(books, name::String, group::String) end
+
+function write(book::Book) end
