@@ -1,9 +1,18 @@
+abstract type AbstractMessage end
+
+function to_csv(message::T) where {T<:AbstractMessage}
+    fields = fieldnames(T)  # T = typeof(message)
+    vals = [getfield(message, f) for f in fields]
+    line = join(string.(vals), ",")
+end
+
+
 """
 Message
 
 Data structure representing order book updates.
 """
-struct Message
+mutable struct Message <: AbstractMessage
     date::Date
     sec::Int
     nano::Int
@@ -14,46 +23,34 @@ struct Message
     price::Int
     shares::Int
     refno::Int
-    rewrefno::Int
+    newrefno::Int
     mpid::String
 end
 
-function Message(date, sec = -1, nano = -1, type = ".", event = ".", name = ".", side = ".", price = -1, shares = -1, refno = -1, newrefno = -1, mpid = ".")
-    return Message(
-        date,
-        sec,
-        nano,
-        type,
-        event,
-        name,
-        side,
-        price,
-        shares,
-        refno,
-        newrefno,
-        mpid
-    )
+function Message(date; sec = -1, nano = -1, type = ".", event = ".", name = ".", side = ".", price = -1, shares = -1, refno = -1, newrefno = -1, mpid = ".")
+    return Message(date, sec, nano, type, event, name, side, price, shares, refno, newrefno, mpid)
 end
 
+import Base.split
 """
 split(message)
 
 Convert a replace message into an add and a delete.
 """
 function split(message)
-    if message.type == 'U'
+    if message.type == "U"
         del_message = Message(
-            date=message.date,
+            message.date,
             sec=message.sec,
             nano=message.nano,
-            type='D',
+            type="D",
             refno=message.refno  # newrefno = -1 by default
         )
         add_message = Message(
-            date=message.date,
+            message.date,
             sec=message.sec,
             nano=message.nano,
-            type='G',
+            type="G",
             price=message.price,
             shares=message.shares,
             refno=message.refno,
@@ -74,54 +71,27 @@ Fill in missing message data by matching it to its reference order.
 function complete!(message::Message, orders::Dict)
     if message.refno in keys(orders)
         ref_order = orders[message.refno]
-        if message.type == 'U'
+        if message.type == "U"  # TODO: remove this (do we ever complete replace messages directly?)
             message.name = ref_order.name
             message.side = ref_order.side
-        elseif message.type == 'G'  # ADD from a split REPLACE order
-            message.type = 'A'
+        elseif message.type == "G"  # ADD from a split REPLACE order
+            message.type = "A"
             message.name = ref_order.name
             message.side = ref_order.side
             message.refno = message.newrefno
             message.newrefno = -1
-        elseif message.type in ['E', 'C', 'X']
+        elseif message.type in ["E", "C", "X"]
             message.name = ref_order.name
             message.side = ref_order.side
             message.price = ref_order.price
-            message.shares = message.shares
-        elseif message.type == 'D'
+        elseif message.type == "D"
             message.name = ref_order.name
             message.side = ref_order.side
             message.price = ref_order.price
             message.shares = ref_order.shares
         end
     end
-end
-
-
-"""
-add_order!(orders::Dict, message::Message)
-
-Add an order to the order list based on message payload.
-"""
-function add!(orders::Dict, message::Message)
-    order = Order(message.name, message.side, message.price, message.shares)
-    orders[message.refno] = order
-end
-
-
-"""
-update_order!(orders::Dict, message::Message)
-
-Update an order in the order list based on message payload.
-"""
-function update!(orders::Dict, message::Message)
-    if message.refno in keys(orders)
-        if message.type in ['E', 'X', 'C']  # execute, execute w/ price, cancel
-            orders[message.refno].shares -= message.shares
-        elseif message.type == 'D'  # delete
-            delete!(orders, message.refno)
-        end
-    end
+    return message
 end
 
 
@@ -130,7 +100,7 @@ NOIIMessage
 
 Data structure representing net order imbalance indicator messages and cross trade messages.
 """
-struct NOIIMessage
+mutable struct NOIIMessage <: AbstractMessage
     date::Date
     sec::Int
     nano::Int
@@ -149,31 +119,27 @@ struct NOIIMessage
     current::Int
 end
 
+function NOIIMessage(date; sec = -1, nano = -1, name = ".", type = ".", cross = ".", side = ".", price = -1, shares = -1, matchno = -1, paired = -1, imbalance = -1, direction = ".", far = -1, near = -1, current = -1)
+    return NOIIMessage(date, sec, nano, name, type, cross, side, price, shares, matchno, paired, imbalance, direction, far, near, current)
+end
+
 
 """
 TradeMessage
 
 Data structure representing trades.
 """
-struct TradeMessage
+mutable struct TradeMessage <: AbstractMessage
     date::Date
     sec::Int
     nano::Int
     name::String
+    type::String
     side::String
     price::Int
     shares::Int
 end
 
-
-"""
-
-Write a list of messages to text file.
-"""
-function write(messages, path::String, group::String) end
-
-function write(message::Message)
-    
+function TradeMessage(date; sec = -1, nano = -1, name = ".", type = ".", side = ".", price = -1, shares = -1)
+    return TradeMessage(date, sec, nano, name, type, side, price, shares)
 end
-function write(message::TradeMessage) end
-function write(message::NOIIMessage) end

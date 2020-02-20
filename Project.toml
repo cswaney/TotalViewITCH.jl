@@ -1,6 +1,8 @@
-authors = ["cswaney <colinswaney@gmail.com>"]
 name = "TotalViewITCH"
 uuid = "b1598c42-fced-11e9-0728-39c8d1e8377b"
+authors = ["cswaney <colinswaney@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
