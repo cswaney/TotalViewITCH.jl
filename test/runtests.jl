@@ -1,4 +1,9 @@
 using Test
+using Revise
+using Pkg
+Pkg.activate(".")
+using TotalViewITCH
+using Dates
 
 function (≜)(a::T, b::T) where {T}
     fields = fieldnames(T)
