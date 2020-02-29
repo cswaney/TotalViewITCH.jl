@@ -9,5 +9,5 @@ version = 4.1
 date = Date("2013-03-14")
 nlevels = 3
 tickers = ["ALT"]
-dir = "/Users/colinswaney/Desktop/Development/TotalViewITCH/data/"
+dir = "/Users/colinswaney/Desktop/Development/TotalViewITCH/data"
 process(file, version, date, nlevels, tickers, dir)

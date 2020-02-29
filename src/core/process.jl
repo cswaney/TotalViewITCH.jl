@@ -239,7 +239,7 @@ function process(file, version, date, nlevels, tickers, dir)
     clock = 0
     start = time()
 
-    # progress = Juno.Progress(59400 - 25200, 1)   # minimum update interval: 1 second
+    # progress = Progress(59400 - 25200, 1)   # minimum update interval: 1 second
 
     while reading
         # read message
@@ -269,7 +269,7 @@ function process(file, version, date, nlevels, tickers, dir)
         if message.type == "S"
             @info "SYSTEM MESSAGE: $(message.event)"
             if message.event == "C"  # end of messages
-                reading = False
+                reading = false
             end
         elseif message.type == "H"
             if message.name in tickers
@@ -409,10 +409,10 @@ function create_recorders(tickers, dir, buffer_size = 10 ^ 4)
     imbalances = Dict{String,Recorder}()
     for name in tickers
         file = string(name, ".csv")
-        books[name] = Recorder(buffer_size, string(dir, "/books/", file))
-        messages[name] = Recorder(buffer_size, string(dir, "/messages/", file))
-        trades[name] = Recorder(buffer_size, string(dir, "/trades/", file))
-        imbalances[name] = Recorder(buffer_size, string(dir, "/noii/", file))
+        books[name] = Recorder(buffer_size, string(dir, "/csv/books/", file))
+        messages[name] = Recorder(buffer_size, string(dir, "/csv/messages/", file))
+        trades[name] = Recorder(buffer_size, string(dir, "/csv/trades/", file))
+        imbalances[name] = Recorder(buffer_size, string(dir, "/csv/noii/", file))
     end
     return books, messages, trades, imbalances
 end
