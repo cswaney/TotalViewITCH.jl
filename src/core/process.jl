@@ -1,5 +1,3 @@
-# TODO: database setup and teardown processes
-
 const TYPES = ["T", "S", "H", "A", "F", "E", "C", "X", "D", "U", "P", "Q", "I"]
 
 get_message_size(io) = Int(unpack(io, "H")[1])
@@ -16,7 +14,7 @@ end
 
 
 """
-unpack_message_bytes(message_bytes, type, time, version)
+unpack_message_payload(message_bytes, type, time, version)
 
 Unpack binary message data and return an out-going message.
 """
@@ -220,16 +218,17 @@ Read a binary data file and write message and order book data to file.
 - `date`: date to associate with output.
 - `nlevels`: number of order book levels to track.
 - `tickers`: stock tickers to track.
-- `path`: location to write output.
+- `dir`: location to write output.
 """
 function process(file, version, date, nlevels, tickers, dir)
+
+    build(dir)
 
     BUFFER_SIZE = 10 ^ 4
 
     orders = Dict{Int,Order}()
     books = create_books(tickers, nlevels)
-
-    snapshots, messages, trades, imbalances = create_recorders(tickers, dir)
+    snapshots, messages, trades, imbalances = create_recorders(tickers, dir, BUFFER_SIZE)
 
     io = open(file, "r")
     message_reads = 0
@@ -239,6 +238,8 @@ function process(file, version, date, nlevels, tickers, dir)
     reading = true
     clock = 0
     start = time()
+
+    # progress = Juno.Progress(59400 - 25200, 1)   # minimum update interval: 1 second
 
     while reading
         # read message
@@ -260,21 +261,19 @@ function process(file, version, date, nlevels, tickers, dir)
         if message.type == "T"
             clock = message.sec
             if clock % 1800 == 0
-                println("TIME=$(clock)")
+                @info "TIME=$(clock)"
             end
         end
 
         # update system
         if message.type == "S"
-            println("SYSTEM MESSAGE: $(message.event)")
-            # write(message, log_dir)
+            @info "SYSTEM MESSAGE: $(message.event)"
             if message.event == "C"  # end of messages
                 reading = False
             end
         elseif message.type == "H"
             if message.name in tickers
-                println("TRADE MESSAGE ($(message.name): $(message.event))")
-                # write(message, log_dir)
+                @info "TRADE MESSAGE ($(message.name): $(message.event))"
                 if message.event == "H"  # halted (all US)
                     # TODO
                 elseif message.event == "P"  # paused (all US)
@@ -294,42 +293,58 @@ function process(file, version, date, nlevels, tickers, dir)
             complete!(del_message, orders)
             complete!(add_message, orders)
             if message.name in tickers
+                @info "message: $(message)"
+
+                # ProgressMeter.update!(progress, clock - 25200)
+
+                push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 update!(orders, del_message)
                 update!(books[message.name], del_message)
-                update!(orders, add_message)
+                push!(snapshots[message.name], to_csv(books[message.name]))
+                add!(orders, add_message)
                 update!(books[message.name], add_message)
                 push!(snapshots[message.name], to_csv(books[message.name]))
-                push!(snapshots[message.name], to_csv(books[message.name]))
-                push!(messages[message.name], to_csv(message))
             end
         elseif message.type in ["E", "C", "X", "D"]
             complete!(message, orders)
             if message.name in tickers
+                @info "message: $(message)"
+
+                # ProgressMeter.update!(progress, clock - 25200)
+
+                push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 update!(orders, message)
                 update!(books[message.name], message)
                 push!(snapshots[message.name], to_csv(books[message.name]))
-                push!(messages[message.name], to_csv(message))
             end
         elseif message.type in ["A", "F"]
             if message.name in tickers
+                @info "message: $(message)"
+
+                # ProgressMeter.update!(progress, clock - 25200)
+
+                push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 add!(orders, message)
                 update!(books[message.name], message)
                 push!(snapshots[message.name], to_csv(books[message.name]))
-                push!(messages[message.name], to_csv(message))
             end
         elseif message.type == "P"
-            if message.name in tickers
-                trade_writes += 1
-                push!(trades[message.name], to_csv(message))
-            end
+            # TODO
+            # @info "trade message: $(message)"
+            # if message.name in tickers
+            #     push!(trades[message.name], to_csv(message))
+            #     trade_writes += 1
+            # end
         elseif message.type in ["Q", "I"]
-            if message.name in tickers
-                noii_writes += 1
-                push!(imbalances[message.name], to_csv(message))
-            end
+            # TODO
+            # @info "imbalance message: $(message)"
+            # if message.name in tickers
+            #     push!(imbalances[message.name], to_csv(message))
+            #     noii_writes += 1
+            # end
         end
 
         # TODO: remove (now handled by Recorder)
@@ -361,8 +376,8 @@ function process(file, version, date, nlevels, tickers, dir)
         # end
     end
 
-    # TODO
     # clean up
+    @info "Cleaning up..."
     for name in tickers
         write(snapshots[name])
         write(messages[name])
@@ -372,11 +387,11 @@ function process(file, version, date, nlevels, tickers, dir)
 
     stop = time()
     elapsed_time = stop - start
-    println("Elapsed time: $(elapsed_time)")
-    println("Messages read: $(message_reads)")
-    println("Messages written: $(message_writes)")
-    println("NOII written: $(noii_writes)")
-    println("Trades written: $(trade_writes)")
+    @info "Elapsed time: $(elapsed_time)"
+    @info "Messages read: $(message_reads)"
+    @info "Messages written: $(message_writes)"
+    @info "NOII written: $(noii_writes)"
+    @info "Trades written: $(trade_writes)"
 end
 
 function create_books(tickers, nlevels)
@@ -387,20 +402,17 @@ function create_books(tickers, nlevels)
     return books
 end
 
-function create_recorders(tickers, dir)
-
-    BUFFER_SIZE = 10 ^ 4
-
+function create_recorders(tickers, dir, buffer_size = 10 ^ 4)
     books = Dict{String,Recorder}()
     messages = Dict{String,Recorder}()
     trades = Dict{String,Recorder}()
     imbalances = Dict{String,Recorder}()
     for name in tickers
         file = string(name, ".csv")
-        books[name] = Recorder(BUFFER_SIZE, string(dir, "/books/", file))
-        messages[name] = Recorder(BUFFER_SIZE, string(dir, "/messages/", file))
-        trades[name] = Recorder(BUFFER_SIZE, string(dir, "/trades/", file))
-        imbalances[name] = Recorder(BUFFER_SIZE, string(dir, "/noii/", file))
+        books[name] = Recorder(buffer_size, string(dir, "/books/", file))
+        messages[name] = Recorder(buffer_size, string(dir, "/messages/", file))
+        trades[name] = Recorder(buffer_size, string(dir, "/trades/", file))
+        imbalances[name] = Recorder(buffer_size, string(dir, "/noii/", file))
     end
     return books, messages, trades, imbalances
 end
