@@ -37,24 +37,24 @@ split(message)
 
 Convert a replace message into an add and a delete.
 """
-function split(message)
+function split(message::Message)
     if message.type == "U"
         del_message = Message(
             message.date,
-            sec=message.sec,
-            nano=message.nano,
-            type="D",
-            refno=message.refno  # newrefno = -1 by default
+            sec = message.sec,
+            nano = message.nano,
+            type = "D",
+            refno = message.refno  # newrefno = -1 by default
         )
         add_message = Message(
             message.date,
-            sec=message.sec,
-            nano=message.nano,
-            type="G",
-            price=message.price,
-            shares=message.shares,
-            refno=message.refno,
-            newrefno=message.newrefno
+            sec = message.sec,
+            nano = message.nano,
+            type = "G",  # special type for add messages derived from replace
+            price = message.price,
+            shares = message.shares,
+            refno = message.refno,
+            newrefno = message.newrefno
         )
         return message, del_message, add_message
     else
@@ -90,6 +90,9 @@ function complete!(message::Message, orders::Dict)
             message.price = ref_order.price
             message.shares = ref_order.shares
         end
+        # @info "Completed message: $(message)"
+    else
+        # @warn "Failed to complete message: $(message)"
     end
     return message
 end
