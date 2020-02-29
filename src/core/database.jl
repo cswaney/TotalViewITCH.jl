@@ -1,41 +1,63 @@
 """
-`Buffer`
+`build(dir)`
 
-A data structure to manage writing data to CSV files.
+Build a database at `dir`. The structure of the database is:
 
-The buffer holds lines in an array. When the buffer is full, the lines are concatenated and written to file, and the data array is then emptied.
+    dir
+     |- books
+         |- aapl.csv
+         |- ...
+     |- messages
+         |- aapl.csv
+         |- ...
+     |- trades
+         |- aapl.csv
+         |- ...
+     |- noii
+         |- aapl.csv
+         |- ...
 """
-mutable struct Buffer{T}
-    arr::Array{T}
-    ptr::Int
-    file::String
-    function Buffer{T}(n, file) where {T}
-        arr = Array{T}(undef, n)
-        new(arr, 1, file)
+function build(dir, force = false)
+
+    # check if the directory exists
+    if isdir(dir)
+        if !force
+            resp = input("Overwrite existing directory? (Y/N)")
+            if lowercase(resp) != "y"
+                @info "Cancelled database build process"
+                return
+            end
+        end
+        # remove the existing directory
+        rm(dir, force = true, recursive = true)
     end
+
+    # build the database
+    @info "Creating database: $(dir)"
+    base_path = mkdir(dir)
+    csv_path = mkdir(dir * "/csv")
+    mkdir(csv_path * "/books/")
+    mkdir(csv_path * "/messages/")
+    mkdir(csv_path * "/trades/")
+    mkdir(csv_path * "/noii/")
+    return nothing
 end
 
-import Base.push!
-function push!(buffer::Buffer, line)
-    buffer.arr[buffer.ptr] = line
-    # println("added line to buffer")
-    if buffer.ptr == length(buffer.arr)
-        println("flushing buffer...")
-        write(buffer)
-    else
-        buffer.ptr += 1
+function teardown(dir)
+    resp = input("Confirm teardown of database: $(dir)? (Y/N)")
+    if lowercase(resp) == "y"
+        rm(dir, force = true, recursive = true)
+        @info "Database removed"
     end
-    println("(ptr = $(buffer.ptr))")
+    @info "Cancelled database teardown process"
 end
 
-import Base.write
-function write(buffer::Buffer, mode = "a+")
-    lines = tocsv.(buffer.arr[1:buffer.ptr])
-    open(buffer.file, mode) do io
-        write(io, join(buffer.arr[1:buffer.ptr], '\n') * "\n")
-    end
-    buffer.arr = typeof(buffer.arr)(undef, length(buffer.arr))
-    buffer.ptr = 1
+# NOTE: Juno not a true dependency!
+import Juno.input
+function input(prompt)
+    println(prompt)
+    resp = readline()
+    return resp
 end
 
 
@@ -44,7 +66,9 @@ end
 
     A data structure to manage writing data to CSV files.
 
-    The Recorder holds lines in an array. When the Recorder is full, the lines are concatenated and written to file, and the data array is then emptied.
+    The Recorder holds lines in a string. When the Recorder is full, the string is written to file and the string is emptied.
+
+    Note that `push!` adds an end-of-line character to `line`. Thus, lines pushed to `Recorder`s should **not** include '\n'.
 """
 mutable struct Recorder
     buffer::String
@@ -57,6 +81,7 @@ mutable struct Recorder
 end
 
 function reset!(r::Recorder)
+    @debug "Resetting recorder..."
     r.buffer = ""
     r.linecount = 0
     return r
@@ -65,18 +90,18 @@ end
 import Base.push!
 function push!(recorder::Recorder, line)
     recorder.buffer *= line * "\n"
-    # println("appended line to Recorder")
+    @debug "Pushing new line to recorder..."
     recorder.linecount += 1
     if recorder.linecount == recorder.maxcount
-        println("flushing Recorder...")
         write(recorder)
         reset!(recorder)
     end
-    # println("(linecount = $(recorder.linecount))")
+    @debug "Linecount: $(recorder.linecount)"
 end
 
 import Base.write
 function write(recorder::Recorder; mode = "a+")
+    @debug "Writing lines to file..."
     open(recorder.file, mode) do io
         Base.write(io, recorder.buffer)
     end
