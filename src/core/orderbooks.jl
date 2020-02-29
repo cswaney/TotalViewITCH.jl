@@ -14,14 +14,12 @@ end
 """
 add_order!(orders::Dict, message::Message)
 
-Add an order to the order collection based on a new message.
+Add an order to an order collection based on a new message.
 """
 function add!(orders::Dict{Int,Order}, message::Message)
-
     if !(message.type in ["A", "F"])
-        error("Attempted to add order of type $(message.type) to order collection")
+        @error "Tried to add order from message type $(message.type)"
     end
-
     order = Order(
         message.name,
         message.side,
@@ -41,13 +39,14 @@ function update!(orders::Dict{Int,Order}, message::Message)
     if message.refno in keys(orders)
         if message.type in ["E", "X", "C"]  # execute, execute w/ price, cancel
             orders[message.refno].shares -= message.shares
-            # remove order if exhausted
-            if orders[message.refno].shares == 0
+            if orders[message.refno].shares == 0  # remove order if completed
                 delete!(orders, message.refno)
             end
         elseif message.type == "D"  # delete
             delete!(orders, message.refno)
         end
+    else
+        @warn "Failed to update order for message: $(message.refno)"
     end
 end
 
@@ -63,19 +62,20 @@ mutable struct Book
     sec::Int
     nano::Int
     name::String
-    nlevels::Int
+    nlevels::Int  # number of levels to report
 end
 
 function Book(nlevels::Int; name::String = ".")
     return Book(Dict{Int,Int}(), Dict{Int,Int}(), -1, -1, name, nlevels)
 end
 
-# TODO: only use best `nlevels` of the book
 function to_csv(book::Book)
     bid_prices = [k for k in keys(book.bids)]
     ask_prices = [k for k in keys(book.asks)]
-    bid_idx = sortperm(bid_prices, rev=true)[1:book.nlevels]
-    ask_idx = sortperm(ask_prices)[1:book.nlevels]
+    # bid_idx = sortperm(bid_prices, rev=true)[1:book.nlevels]
+    # ask_idx = sortperm(ask_prices)[1:book.nlevels]
+    bid_idx = sortperm(bid_prices, rev=true)[1:min(book.nlevels, length(bid_prices))]
+    ask_idx = sortperm(ask_prices)[1:min(book.nlevels, length(ask_prices))]
     prices = [bid_prices[bid_idx]; ask_prices[ask_idx]]
     bid_shares = [v for v in values(book.bids)]
     ask_shares = [v for v in values(book.asks)]
@@ -95,7 +95,7 @@ function update!(book::Book, message::Message)
 
     # double-check matching tickers
     if book.name != message.name
-        error("Book name $(book.name) doesn't match message name $(message.name)")
+        @error "Book name $(book.name) doesn't match message name $(message.name)"
     end
 
     if message.side == "B"
@@ -104,12 +104,14 @@ function update!(book::Book, message::Message)
                 book.bids[message.price] -= message.shares
                 if book.bids[message.price] == 0
                     delete!(book.bids, message.price)
+                    @debug "Deleted price $(message.price) from bids"
                 end
             elseif message.type in ["A", "F"]
                 book.bids[message.price] += message.shares
             end
         elseif message.type in ["A", "F"]
             book.bids[message.price] = message.shares
+            @debug "Added price $(message.price) to bids"
         end
     elseif message.side == "S"
         if message.price in keys(book.asks)
@@ -117,22 +119,24 @@ function update!(book::Book, message::Message)
                 book.asks[message.price] -= message.shares
                 if book.asks[message.price] == 0
                     delete!(book.asks, message.price)
+                    @debug "Deleted price $(message.price) from asks"
                 end
             elseif message.type in ["A", "F"]
                 book.asks[message.price] += message.shares
             end
         elseif message.type in ["A", "F"]
             book.asks[message.price] = message.shares
+            @debug "Added price $(message.price) to bids"
         end
     end
     return book
 end
 
 
-"""
-
-Write a list of order book snapshots to a text file.
-"""
-function write(books, name::String, group::String) end
-
-function write(book::Book) end
+# """
+#
+# Write a list of order book snapshots to a text file.
+# """
+# function write(books, name::String, group::String) end
+#
+# function write(book::Book) end
