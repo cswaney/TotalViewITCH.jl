@@ -17,12 +17,12 @@ nlevels = 3
         type = "A",
         name = "AAPL",
         side = "B",
-        price = 125,
+        price = 125.00,
         shares = 500,
         refno = 123456789
     )
     add!(orders, add_message)
-    @test get(orders, 123456789, nothing) ≜ Order("AAPL", "B", 125, 500)
+    @test get(orders, 123456789, nothing) ≜ Order("AAPL", "B", 125.00, 500)
 
     # execute order
     execute_message = Message(
@@ -32,7 +32,7 @@ nlevels = 3
         refno = 123456789
     )
     update!(orders, execute_message)
-    @test get(orders, 123456789, nothing) ≜ Order("AAPL", "B", 125, 400)
+    @test get(orders, 123456789, nothing) ≜ Order("AAPL", "B", 125.00, 400)
 
     # cancel order
     cancel_message = Message(
@@ -42,7 +42,7 @@ nlevels = 3
         refno = 123456789
     )
     update!(orders, cancel_message)
-    @test get(orders, 123456789, nothing) ≜ Order("AAPL", "B", 125, 300)
+    @test get(orders, 123456789, nothing) ≜ Order("AAPL", "B", 125.00, 300)
 
     # delete
     delete_message = Message(
@@ -64,11 +64,11 @@ end
         type = "A",
         name = "AAPL",
         side = "B",
-        price = 125,
+        price = 125.00,
         shares = 500
     )
     update!(book, add_message)
-    @test get(book.bids, 125, nothing) ≜ 500
+    @test get(book.bids, 125.00, nothing) ≜ 500
 
     # execute message
     execute_message = Message(
@@ -76,11 +76,11 @@ end
         type = "E",
         name = "AAPL",
         side = "B",
-        price = 125,
+        price = 125.00,
         shares = 100
     )
     update!(book, execute_message)
-    @test get(book.bids, 125, nothing) ≜ 400
+    @test get(book.bids, 125.00, nothing) ≜ 400
 
     # cancel message
     cancel_message = Message(
@@ -88,11 +88,11 @@ end
         type = "C",
         name = "AAPL",
         side = "B",
-        price = 125,
+        price = 125.00,
         shares = 100
     )
     update!(book, cancel_message)
-    @test get(book.bids, 125, nothing) ≜ 300
+    @test get(book.bids, 125.00, nothing) ≜ 300
 
     # delete message
     delete_message = Message(
@@ -100,14 +100,14 @@ end
         type = "D",
         name = "AAPL",
         side = "B",
-        price = 125,
+        price = 125.00,
         shares = 300
     )
     update!(book, delete_message)
-    @test get(book.bids, 125, nothing) ≜ nothing
+    @test get(book.bids, 125.00, nothing) ≜ nothing
 end
 
-@testset "IO" begin
+@testset "Books.IO" begin
     bids = Dict(100 => 500, 99 => 400, 98 => 200)
     asks = Dict(103 => 400, 105 => 300, 106 => 200)
     book = Book(bids, asks, 0, 0, "", 3)

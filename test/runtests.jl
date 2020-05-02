@@ -1,5 +1,5 @@
 using Test
-using Revise
+# using Revise
 using Pkg
 Pkg.activate(".")
 using TotalViewITCH
@@ -13,5 +13,4 @@ end
 
 include("messages.jl")
 include("orderbooks.jl")
-# include("process.jl")
 # include("database.jl")

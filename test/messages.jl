@@ -104,3 +104,16 @@ date = Date("2010-01-01")
         refno = 123456789
     )
 end
+
+@testset "Messages.IO" begin
+    add_message = Message(
+        date,
+        type = "A",
+        name = "AAPL",
+        side = "B",
+        price = 125,
+        shares = 500,
+        refno = 123456789
+    )
+    @test to_csv(add_message) == "2010-01-01,-1,-1,A,.,AAPL,B,125,500,123456789,-1,."
+end

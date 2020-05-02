@@ -53,7 +53,7 @@ function teardown(dir)
 end
 
 # NOTE: Juno not a true dependency!
-import Juno.input
+# import Juno.input
 function input(prompt)
     println(prompt)
     resp = readline()
