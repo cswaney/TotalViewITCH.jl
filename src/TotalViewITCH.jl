@@ -2,16 +2,16 @@ module TotalViewITCH
 
 using Dates, ProgressMeter
 
-include("core/messages.jl")
+include("messages.jl")
 export AbstractMessage, Message, NOIIMessage, TradeMessage, split, complete!, to_csv
 
-include("core/orderbooks.jl")
+include("orderbooks.jl")
 export Order, Book, add!, update!, to_csv
 
-include("core/database.jl")
+include("database.jl")
 export Recorder, push!, write, build, teardown
 
-include("core/process.jl")
+include("process.jl")
 export process
 
 end # module
