@@ -255,7 +255,7 @@ function process(file, version, date, nlevels, tickers, dir)
         )
         message_reads += 1
 
-        message == nothing && continue  # ignored message type
+        isnothing(message) && continue  # ignored message type
 
         # update clock
         if message.type == "T"
@@ -347,33 +347,6 @@ function process(file, version, date, nlevels, tickers, dir)
             # end
         end
 
-        # TODO: remove (now handled by Recorder)
-        # write message
-        # if message.type in ["U", "A", "F", "E", "C", "X", "D"]
-        #     if message.name in tickers
-        #         name = message.name
-        #         if length(messages[name]) == BUFFER_SIZE
-        #             write(messages, dir = dir, group = "messages", name = name)
-        #         end
-        #         if length(snapshots[name]) == BUFFER_SIZE
-        #             write(snapshots, dir = dir, group = "books", name = name)
-        #         end
-        #     end
-        # elseif message.type == "P"
-        #     if message.name in tickers
-        #         name = message.name
-        #         if length(trades[name]) == BUFFER_SIZE
-        #             write(trades, dir = dir, group = "trades", name = name)
-        #         end
-        #     end
-        # elseif message.type in ["Q", "I"]
-        #     if message.name in tickers
-        #         name = message.name
-        #         if length(imbalances[name]) == BUFFER_SIZE
-        #             write(imbalances, dir = dir, group = "noii", name = name)
-        #         end
-        #     end
-        # end
     end
 
     # clean up
