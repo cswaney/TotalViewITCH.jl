@@ -1,7 +1,7 @@
 """
-`build(dir)`
+    build(dir)
 
-Build a database at `dir`. The structure of the database is:
+Scaffold a database at `dir`. The structure of the database is:
 
     dir
      |- books
@@ -22,7 +22,7 @@ function build(dir, force = false)
     # check if the directory exists
     if isdir(dir)
         if !force
-            resp = input("Overwrite existing directory? (Y/N)")
+            resp = input("Overwrite existing directory: $(abspath(dir))? (Y/N)")
             if lowercase(resp) != "y"
                 @info "Cancelled database build process"
                 return
@@ -33,21 +33,21 @@ function build(dir, force = false)
     end
 
     # build the database
-    @info "Creating database: $(dir)"
-    base_path = mkdir(dir)
-    csv_path = mkdir(dir * "/csv")
-    mkdir(csv_path * "/books/")
-    mkdir(csv_path * "/messages/")
-    mkdir(csv_path * "/trades/")
-    mkdir(csv_path * "/noii/")
+    @info "Creating database: $(abspath(dir))"
+    path = mkdir(dir)
+    mkdir(joinpath(path, "books"))
+    mkdir(joinpath(path, "messages"))
+    mkdir(joinpath(path, "trades"))
+    mkdir(joinpath(path, "noii"))
     return nothing
 end
 
 function teardown(dir)
-    resp = input("Confirm teardown of database: $(dir)? (Y/N)")
+    resp = input("Confirm teardown of database: $(abspath(dir))? (Y/N)")
     if lowercase(resp) == "y"
         rm(dir, force = true, recursive = true)
         @info "Database removed"
+        return nothing
     end
     @info "Cancelled database teardown process"
 end
@@ -62,13 +62,13 @@ end
 
 
 """
-`Recorder`
+    `Recorder`
 
-    A data structure to manage writing data to CSV files.
+A data structure to manage writing data to CSV files.
 
-    The Recorder holds lines in a string. When the Recorder is full, the string is written to file and the string is emptied.
+The Recorder holds lines in a string. When the Recorder is full, the string is written to file and the string is emptied.
 
-    Note that `push!` adds an end-of-line character to `line`. Thus, lines pushed to `Recorder`s should **not** include '\n'.
+Note that `push!` adds an end-of-line character to `line`. Thus, lines pushed to `Recorder`s should **not** include '\n'.
 """
 mutable struct Recorder
     buffer::String
@@ -81,7 +81,7 @@ mutable struct Recorder
 end
 
 function reset!(r::Recorder)
-    @debug "Resetting recorder..."
+    @debug "resetting recorder..."
     r.buffer = ""
     r.linecount = 0
     return r
@@ -89,19 +89,19 @@ end
 
 import Base.push!
 function push!(recorder::Recorder, line)
+    @debug "pushing new line to recorder..."
     recorder.buffer *= line * "\n"
-    @debug "Pushing new line to recorder..."
     recorder.linecount += 1
     if recorder.linecount == recorder.maxcount
         write(recorder)
         reset!(recorder)
     end
-    @debug "Linecount: $(recorder.linecount)"
+    @debug "new linecount: $(recorder.linecount)"
 end
 
 import Base.write
 function write(recorder::Recorder; mode = "a+")
-    @debug "Writing lines to file..."
+    @debug "writing recorder to file..."
     open(recorder.file, mode) do io
         Base.write(io, recorder.buffer)
     end
