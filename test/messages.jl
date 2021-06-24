@@ -1,7 +1,4 @@
-# using Revise
-# using Pkg
-# Pkg.activate(".")
-using TotalViewITCH
+using TotalViewITCH: add!, complete!, to_csv
 using Dates
 
 date = Date("2010-01-01")
@@ -27,7 +24,7 @@ date = Date("2010-01-01")
         refno = 123456789
     )
     complete!(delete_message, orders)
-    @test delete_message ≜ Message(
+    @test delete_message == Message(
         date,
         type = "D",
         name = "AAPL",
@@ -49,7 +46,7 @@ date = Date("2010-01-01")
     _, delete_message, add_message = split(replace_message)
     complete!(delete_message, orders)
     complete!(add_message, orders)
-    @test delete_message ≜ Message(
+    @test delete_message == Message(
         date,
         type = "D",
         name = "AAPL",
@@ -58,7 +55,7 @@ date = Date("2010-01-01")
         shares = 500,
         refno = 123456789
     )
-    @test add_message ≜ Message(
+    @test add_message == Message(
         date,
         type = "A",
         name = "AAPL",
@@ -76,7 +73,7 @@ date = Date("2010-01-01")
         refno = 123456789
     )
     complete!(execute_message, orders)
-    @test execute_message ≜ Message(
+    @test execute_message == Message(
         date,
         type = "E",
         name = "AAPL",
@@ -94,7 +91,7 @@ date = Date("2010-01-01")
         refno = 123456789
     )
     complete!(cancel_message, orders)
-    @test cancel_message ≜ Message(
+    @test cancel_message == Message(
         date,
         type = "C",
         name = "AAPL",

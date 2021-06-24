@@ -1,7 +1,4 @@
-# using Revise
-# using Pkg
-# Pkg.activate(".")
-using TotalViewITCH
+using TotalViewITCH: add!, update!, to_csv
 using Dates
 
 date = Date("2010-01-01")
@@ -22,7 +19,7 @@ nlevels = 3
         refno = 123456789
     )
     add!(orders, add_message)
-    @test get(orders, 123456789, nothing) ≜ Order("AAPL", "B", 125.00, 500)
+    @test get(orders, 123456789, nothing) == Order("AAPL", "B", 125.00, 500)
 
     # execute order
     execute_message = Message(
@@ -32,7 +29,7 @@ nlevels = 3
         refno = 123456789
     )
     update!(orders, execute_message)
-    @test get(orders, 123456789, nothing) ≜ Order("AAPL", "B", 125.00, 400)
+    @test get(orders, 123456789, nothing) == Order("AAPL", "B", 125.00, 400)
 
     # cancel order
     cancel_message = Message(
@@ -42,7 +39,7 @@ nlevels = 3
         refno = 123456789
     )
     update!(orders, cancel_message)
-    @test get(orders, 123456789, nothing) ≜ Order("AAPL", "B", 125.00, 300)
+    @test get(orders, 123456789, nothing) == Order("AAPL", "B", 125.00, 300)
 
     # delete
     delete_message = Message(
@@ -51,7 +48,7 @@ nlevels = 3
         refno = 123456789
     )
     update!(orders, delete_message)
-    @test get(orders, 123456789, nothing) ≜ nothing
+    @test get(orders, 123456789, nothing) == nothing
 end
 
 @testset "Books" begin
@@ -68,7 +65,7 @@ end
         shares = 500
     )
     update!(book, add_message)
-    @test get(book.bids, 125.00, nothing) ≜ 500
+    @test get(book.bids, 125.00, nothing) == 500
 
     # execute message
     execute_message = Message(
@@ -80,7 +77,7 @@ end
         shares = 100
     )
     update!(book, execute_message)
-    @test get(book.bids, 125.00, nothing) ≜ 400
+    @test get(book.bids, 125.00, nothing) == 400
 
     # cancel message
     cancel_message = Message(
@@ -92,7 +89,7 @@ end
         shares = 100
     )
     update!(book, cancel_message)
-    @test get(book.bids, 125.00, nothing) ≜ 300
+    @test get(book.bids, 125.00, nothing) == 300
 
     # delete message
     delete_message = Message(
@@ -104,7 +101,7 @@ end
         shares = 300
     )
     update!(book, delete_message)
-    @test get(book.bids, 125.00, nothing) ≜ nothing
+    @test isnothing(get(book.bids, 125.00, nothing))
 end
 
 @testset "Books.IO" begin

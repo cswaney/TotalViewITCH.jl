@@ -10,6 +10,8 @@ mutable struct Order
     shares::Int
 end
 
+import Base.==
+(==)(a::Order, b::Order) = all([getfield(a, f) == getfield(b, f) for f in fieldnames(Order)])
 
 """
 add_order!(orders::Dict, message::Message)

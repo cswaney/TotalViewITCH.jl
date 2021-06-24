@@ -3,7 +3,7 @@ abstract type AbstractMessage end
 function to_csv(message::T) where {T<:AbstractMessage}
     fields = fieldnames(T)  # T = typeof(message)
     vals = [getfield(message, f) for f in fields]
-    line = join(string.(vals), ",")
+    return join(string.(vals), ",")
 end
 
 
@@ -30,6 +30,9 @@ end
 function Message(date; sec = -1, nano = -1, type = ".", event = ".", name = ".", side = ".", price = -1, shares = -1, refno = -1, newrefno = -1, mpid = ".")
     return Message(date, sec, nano, type, event, name, side, price, shares, refno, newrefno, mpid)
 end
+
+import Base.==
+(==)(a::Message, b::Message) = all([getfield(a, f) == getfield(b, f) for f in fieldnames(Message)])
 
 import Base.split
 """
@@ -71,7 +74,7 @@ Fill in missing message data by matching it to its reference order.
 function complete!(message::Message, orders::Dict)
     if message.refno in keys(orders)
         ref_order = orders[message.refno]
-        if message.type == "U"  # TODO: remove this (do we ever complete replace messages directly?)
+        if message.type == "U"
             message.name = ref_order.name
             message.side = ref_order.side
         elseif message.type == "G"  # ADD from a split REPLACE order
@@ -90,9 +93,9 @@ function complete!(message::Message, orders::Dict)
             message.price = ref_order.price
             message.shares = ref_order.shares
         end
-        # @info "Completed message: $(message)"
+        @debug "completed message: $(message)"
     else
-        # @warn "Failed to complete message: $(message)"
+        @debug "skipped message: $(message)"
     end
     return message
 end
