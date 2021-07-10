@@ -48,7 +48,7 @@ nlevels = 3
         refno = 123456789
     )
     update!(orders, delete_message)
-    @test get(orders, 123456789, nothing) == nothing
+    @test isnothing(get(orders, 123456789, nothing))
 end
 
 @testset "Books" begin
