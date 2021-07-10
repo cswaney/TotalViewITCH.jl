@@ -281,13 +281,10 @@ function unpack(s::IOStream, fmt::String)
     list = []
     idx = 1
     n = 1
-    while idx <= length(fmt)
-        value = fmt[idx]
-        type = typeof(tryparse(Int, string(value)))
-        if type == Int64
-            n = tryparse(Int, string(value))
-        else
-            symbol = Char(value)
+    for symbol in fmt
+        try
+            n = parse(Int, string(symbol))
+        catch
             append!(list, readbytes(s, symbol, n))
             n = 1
         end
@@ -379,7 +376,9 @@ function process(file, version, date, nlevels, tickers, dir)
     while reading
         # read message
         message_size = get_message_size(io)
+        @debug "message_size=$message_size"
         message_type = get_message_type(io)
+        @debug "message_type=$message_type"
         message = get_message(
             io,
             message_size,
@@ -388,6 +387,7 @@ function process(file, version, date, nlevels, tickers, dir)
             clock,
             version
         )
+        @debug "message=$message"
         message_reads += 1
 
         isnothing(message) && continue  # ignored message type
