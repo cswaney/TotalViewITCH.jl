@@ -12,127 +12,259 @@ function get_message(io, size, type, date, time, version)
     end
 end
 
+# TODO: record stock directory messages (allows you to see information for all listed stocks each day)
+
+# elseif type == "R"
+    # payload = unpack(io, "I8sssIs")
+    # message.sec = time
+    # message.nano = payload[1]
+    # message.name = rstrip(String(payload[2]), ' ')
+    # message.category = payload[3]
+    # message.status = payload[4]
+    # message.round_lot = payload[5]
+    # message.round_lot_only = payload[6]
+
+# TODO: REG SHO messages?
+# TODO: Market participant position messages?
+# TODO: Ignore non-printable execute w/ price ("C") messages?
+# TODO: Group cross-trade ("Q") messages with trade messages?
+# TODO: Broken trade messages?
 
 """
-unpack_message_payload(message_bytes, type, time, version)
+    unpack_message_payload(message_bytes, type, time, version)
 
 Unpack binary message data and return an out-going message.
 """
 function unpack_message_payload(io, type, date, time, version)
-    if type == "P"  # trade
-        message = TradeMessage(date, type = type)
-        payload = unpack(io, "IQsI8sIQ")
-        message.sec = time
-        message.nano = Int(payload[1])
-        # message.refno = Int(payload[2])
-        message.side = String(payload[3])
-        message.shares = Int(payload[4])
-        message.name = rstrip(String(payload[5]), ' ')
-        message.price = Int(payload[6])
-        return message
-    elseif type == "I"  # imbalance
-        message = NOIIMessage(date, type = type)
-        payload = unpack(io, "IQQs8sIIIss")
-        message.sec = time
-        message.nano = Int(payload[1])
-        message.paired = Int(payload[2])
-        message.imbalance = Int(payload[3])
-        message.direction = String(payload[4])
-        message.name = rstrip(String(payload[5]), ' ')
-        message.far = Int(payload[6])
-        message.near = Int(payload[7])
-        message.current = Int(payload[8])
-        message.cross = String(payload[9])
-        return message
-    else  # message
-        message = Message(date, type = type)
-        if type == "T"  # time
-            payload = unpack(io, "I")
-            message.sec = Int(payload[1])
-            message.nano = 0
-        elseif type == "S"  # systems
-            payload = unpack(io, "Is")
+    if version == "5.0"
+        if type == "P"  # trade
+            message = TradeMessage(date, type = type)
+            payload = unpack(io, "IQsI8sIQ")
             message.sec = time
             message.nano = Int(payload[1])
-            message.name = "."
-            message.event = String(payload[2])
-        elseif type == "H"  # trade action
-            payload = unpack(io, "I8sss4s")
-            message.sec = time
-            message.nano = Int(payload[1])
-            message.name = rstrip(String(payload[2]), ' ')
-            message.event = String(payload[3])
-        elseif type == "A"  # add
-            payload = unpack(io, "IQsI8sI")
-            message.sec = time
-            message.nano = Int(payload[1])
-            message.refno = Int(payload[2])
+            # message.refno = Int(payload[2])
             message.side = String(payload[3])
             message.shares = Int(payload[4])
             message.name = rstrip(String(payload[5]), ' ')
             message.price = Int(payload[6])
-        elseif type == "F"  # add w/ MPID
-            payload = unpack(io, "IQsI8sI4s")
+            # message.matchno = Int(payload[7])
+            return message
+        elseif type == "I"  # imbalance
+            message = NOIIMessage(date, type = type)
+            payload = unpack(io, "IQQs8sIIIss")
             message.sec = time
             message.nano = Int(payload[1])
-            message.refno = Int(payload[2])
+            message.paired = Int(payload[2])
+            message.imbalance = Int(payload[3])
+            message.direction = String(payload[4])
+            message.name = rstrip(String(payload[5]), ' ')
+            message.far = Int(payload[6])
+            message.near = Int(payload[7])
+            message.current = Int(payload[8])
+            message.cross = String(payload[9])
+            # message.indicator = String(payload[10])
+            return message
+        else  # message
+            message = Message(date, type = type)
+            if type == "S"  # system event
+                payload = unpack(io, "HHIs")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.name = "."
+                message.event = String(payload[2])
+            elseif type == "H"  # trade action
+                payload = unpack(io, "I8sss4s")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.name = rstrip(String(payload[2]), ' ')
+                message.event = String(payload[3])
+            elseif type == "A"  # add
+                payload = unpack(io, "IQsI8sI")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.side = String(payload[3])
+                message.shares = Int(payload[4])
+                message.name = rstrip(String(payload[5]), ' ')
+                message.price = Int(payload[6])
+            elseif type == "F"  # add w/ MPID
+                payload = unpack(io, "IQsI8sI4s")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.side = String(payload[3])
+                message.shares = Int(payload[4])
+                message.name = rstrip(String(payload[5]), ' ')
+                message.price = Int(payload[6])
+                message.mpid = rstrip(String(payload[7]), ' ')
+            elseif type == "E"  # execute
+                payload = unpack(io, "IQIQ")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.shares = Int(payload[3])
+            elseif type == "C"  # execute w/ price
+                payload = unpack(io, "IQIQsI")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.shares = Int(payload[3])
+                # message.matchno = Int(payload[4])
+                # message.printable = message.name = rstrip(String(payload[5]), ' ')
+                message.price = Int(payload[6])
+            elseif type == "X"  # cancel
+                payload = unpack(io, "IQI")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.shares = Int(payload[3])
+            elseif type == "D"  # delete
+                payload = unpack(io, "IQ")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+            elseif type == "U"  # replace
+                payload = unpack(io, "IQQII")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.newrefno = Int(payload[3])
+                message.shares = Int(payload[4])
+                message.price = Int(payload[5])
+            elseif type == "Q"  # cross-trade
+                payload = unpack(io, "IQ8sIQs")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.shares = Int(payload[2])
+                message.name = rstrip(String(payload[3]), ' ')
+                message.price = Int(payload[4])
+                # message.matchno = Int(payload[5])
+                message.event = String(payload[6])
+            end
+            return message
+        end       
+    elseif version == "4.1"
+        if type == "P"  # trade
+            message = TradeMessage(date, type = type)
+            payload = unpack(io, "IQsI8sIQ")
+            message.sec = time
+            message.nano = Int(payload[1])
+            # message.refno = Int(payload[2])
             message.side = String(payload[3])
             message.shares = Int(payload[4])
             message.name = rstrip(String(payload[5]), ' ')
             message.price = Int(payload[6])
-            message.mpid = rstrip(String(payload[7]), ' ')
-        elseif type == "E"  # execute
-            payload = unpack(io, "IQIQ")
+            # message.matchno = Int(payload[7])
+            return message
+        elseif type == "I"  # imbalance
+            message = NOIIMessage(date, type = type)
+            payload = unpack(io, "IQQs8sIIIss")
             message.sec = time
             message.nano = Int(payload[1])
-            message.refno = Int(payload[2])
-            message.shares = Int(payload[3])
-        elseif type == "C"  # execute w/ price
-            payload = unpack(io, "IQIQsI")
-            message.sec = time
-            message.nano = Int(payload[1])
-            message.refno = Int(payload[2])
-            message.shares = Int(payload[3])
-            message.price = Int(payload[6])
-        elseif type == "X"  # cancel
-            payload = unpack(io, "IQI")
-            message.sec = time
-            message.nano = Int(payload[1])
-            message.refno = Int(payload[2])
-            message.shares = Int(payload[3])
-        elseif type == "D"  # delete
-            payload = unpack(io, "IQ")
-            message.sec = time
-            message.nano = Int(payload[1])
-            message.refno = Int(payload[2])
-        elseif type == "U"  # replace
-            payload = unpack(io, "IQQII")
-            message.sec = time
-            message.nano = Int(payload[1])
-            message.refno = Int(payload[2])
-            message.newrefno = Int(payload[3])
-            message.shares = Int(payload[4])
-            message.price = Int(payload[5])
-        elseif type == "Q"  # cross-trade
-            payload = unpack(io, "IQ8sIQs")
-            message.sec = time
-            message.nano = Int(payload[1])
-            message.shares = Int(payload[2])
-            message.name = rstrip(String(payload[3]), ' ')
-            message.price = Int(payload[4])
-            message.event = String(payload[6])
+            message.paired = Int(payload[2])
+            message.imbalance = Int(payload[3])
+            message.direction = String(payload[4])
+            message.name = rstrip(String(payload[5]), ' ')
+            message.far = Int(payload[6])
+            message.near = Int(payload[7])
+            message.current = Int(payload[8])
+            message.cross = String(payload[9])
+            # message.indicator = String(payload[10])
+            return message
+        else  # message
+            message = Message(date, type = type)
+            if type == "T"  # time
+                payload = unpack(io, "I")
+                message.sec = Int(payload[1])
+                message.nano = 0
+            elseif type == "S"  # system event
+                payload = unpack(io, "Is")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.name = "."
+                message.event = String(payload[2])
+            elseif type == "H"  # trade action
+                payload = unpack(io, "I8sss4s")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.name = rstrip(String(payload[2]), ' ')
+                message.event = String(payload[3])
+            elseif type == "A"  # add
+                payload = unpack(io, "IQsI8sI")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.side = String(payload[3])
+                message.shares = Int(payload[4])
+                message.name = rstrip(String(payload[5]), ' ')
+                message.price = Int(payload[6])
+            elseif type == "F"  # add w/ MPID
+                payload = unpack(io, "IQsI8sI4s")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.side = String(payload[3])
+                message.shares = Int(payload[4])
+                message.name = rstrip(String(payload[5]), ' ')
+                message.price = Int(payload[6])
+                message.mpid = rstrip(String(payload[7]), ' ')
+            elseif type == "E"  # execute
+                payload = unpack(io, "IQIQ")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.shares = Int(payload[3])
+            elseif type == "C"  # execute w/ price
+                payload = unpack(io, "IQIQsI")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.shares = Int(payload[3])
+                # message.matchno = Int(payload[4])
+                # message.printable = message.name = rstrip(String(payload[5]), ' ')
+                message.price = Int(payload[6])
+            elseif type == "X"  # cancel
+                payload = unpack(io, "IQI")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.shares = Int(payload[3])
+            elseif type == "D"  # delete
+                payload = unpack(io, "IQ")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+            elseif type == "U"  # replace
+                payload = unpack(io, "IQQII")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.refno = Int(payload[2])
+                message.newrefno = Int(payload[3])
+                message.shares = Int(payload[4])
+                message.price = Int(payload[5])
+            elseif type == "Q"  # cross-trade
+                payload = unpack(io, "IQ8sIQs")
+                message.sec = time
+                message.nano = Int(payload[1])
+                message.shares = Int(payload[2])
+                message.name = rstrip(String(payload[3]), ' ')
+                message.price = Int(payload[4])
+                # message.matchno = Int(payload[5])
+                message.event = String(payload[6])
+            end
+            return message
         end
-        return message
     end
 end
 
 
 """
-unpack(s::IOStream, fmt::String)
+    unpack(s::IOStream, fmt::String)
 
 Unpack a stream of binary data according to the given format. Equivalent to `struct.unpack` in Python.
 
 # Format Strings
+----------------
 Symbol      Julia Type      Bytes
 'c'         Char            1
 'b'         Int8            1
@@ -156,7 +288,6 @@ function unpack(s::IOStream, fmt::String)
             n = tryparse(Int, string(value))
         else
             symbol = Char(value)
-            # println("symbol=$symbol, n=$n")
             append!(list, readbytes(s, symbol, n))
             n = 1
         end
@@ -191,12 +322,16 @@ function readbytes(s::IOStream, symbol)
         return ntoh(read(s, UInt64))
     elseif symbol == 's'
         return read(s, Char)
+    elseif symbol == 'l'
+        # TODO: Int48
+    elseif symbol == 'L'
+        # TODO: UInt48
     end
 end
 
 function readbytes(s::IOStream, symbol, n)
     list = []
-    for i in 1:n
+    for _ in 1:n
         push!(list, readbytes(s, symbol))
     end
     if symbol == 's'
@@ -208,7 +343,7 @@ end
 
 
 """
-`process(file, version, date, nlevels, tickers, path)`
+    process(file, version, date, nlevels, tickers, path)
 
 Read a binary data file and write message and order book data to file.
 
