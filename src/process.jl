@@ -397,7 +397,10 @@ function process(file, version, date, nlevels, tickers, dir)
             clock = message.sec
             if clock % 1800 == 0
                 @info "TIME=$(clock)"
+                @info "(messages_read=$(message_reads))"
+                @info "(elapsed_time=$(time() - start))"
             end
+            continue
         end
 
         # update system
@@ -406,6 +409,7 @@ function process(file, version, date, nlevels, tickers, dir)
             if message.event == "C"  # end of messages
                 reading = false
             end
+            continue
         elseif message.type == "H"
             if message.name in tickers
                 @info "TRADE MESSAGE ($(message.name): $(message.event))"
@@ -419,16 +423,18 @@ function process(file, version, date, nlevels, tickers, dir)
                     # TODO
                 end
             end
+            continue
         end
 
         # complete message
         if message.type == "U"
-            message, del_message, add_message = split(message)
             complete!(message, orders)
-            complete!(del_message, orders)
-            complete!(add_message, orders)
             if message.name in tickers
                 @info "message: $(message)"
+
+                message, del_message, add_message = split(message)
+                complete!(del_message, orders)
+                complete!(add_message, orders)
 
                 # ProgressMeter.update!(progress, clock - 25200)
 
