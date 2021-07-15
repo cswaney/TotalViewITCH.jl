@@ -9,7 +9,7 @@ version = "4.1"
 date = Date("2013-03-14")
 nlevels = 3
 tickers = ["ALT"]
-dir = "./data/csv"
+dir = "./data"
 
 open(file, "r") do io
     clock = 0
