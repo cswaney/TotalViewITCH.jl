@@ -283,7 +283,7 @@ function unpack(s::IO, fmt::String)
     n = 1
     for symbol in fmt
         try
-            n = parse(Int, string(symbol))
+            n = parse(Int, symbol)
         catch
             append!(list, readbytes(s, symbol, n))
             n = 1
