@@ -277,7 +277,7 @@ Symbol      Julia Type      Bytes
 'Q'         UInt64          8
 's'         String          Defined by preceeding integer (e.g., '4s')
 """
-function unpack(s::IOStream, fmt::String)
+function unpack(s::IO, fmt::String)
     list = []
     idx = 1
     n = 1
@@ -293,12 +293,12 @@ function unpack(s::IOStream, fmt::String)
     return list
 end
 
-function skipbytes(s::IOStream, n)
+function skipbytes(s::IO, n)
     read(s, n)
     return
 end
 
-function readbytes(s::IOStream, symbol)
+function readbytes(s::IO, symbol)
     if symbol == 'c'
         return read(s, Char)
     elseif symbol == 'b'
@@ -326,7 +326,7 @@ function readbytes(s::IOStream, symbol)
     end
 end
 
-function readbytes(s::IOStream, symbol, n)
+function readbytes(s::IO, symbol, n)
     list = []
     for _ in 1:n
         push!(list, readbytes(s, symbol))
@@ -354,7 +354,8 @@ Read a binary data file and write message and order book data to file.
 """
 function process(file, version, date, nlevels, tickers, dir)
 
-    build(dir)
+    success = build(dir)
+    !success && return
 
     BUFFER_SIZE = 10 ^ 4
 
@@ -363,6 +364,7 @@ function process(file, version, date, nlevels, tickers, dir)
     snapshots, messages, trades, imbalances = create_recorders(tickers, dir, BUFFER_SIZE)
 
     io = open(file, "r")
+    io = IOBuffer(read(io)) # read entire file -> Vector{UInt8}
     message_reads = 0
     message_writes = 0
     noii_writes = 0
@@ -523,10 +525,10 @@ function create_recorders(tickers, dir, buffer_size = 10 ^ 4)
     imbalances = Dict{String,Recorder}()
     for name in tickers
         file = string(name, ".csv")
-        books[name] = Recorder(buffer_size, string(dir, "/csv/books/", file))
-        messages[name] = Recorder(buffer_size, string(dir, "/csv/messages/", file))
-        trades[name] = Recorder(buffer_size, string(dir, "/csv/trades/", file))
-        imbalances[name] = Recorder(buffer_size, string(dir, "/csv/noii/", file))
+        books[name] = Recorder(buffer_size, string(dir, "books/", file))
+        messages[name] = Recorder(buffer_size, string(dir, "messages/", file))
+        trades[name] = Recorder(buffer_size, string(dir, "trades/", file))
+        imbalances[name] = Recorder(buffer_size, string(dir, "noii/", file))
     end
     return books, messages, trades, imbalances
 end

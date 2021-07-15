@@ -9,7 +9,9 @@ version = "4.1"
 date = Date("2013-03-14")
 nlevels = 3
 tickers = ["ALT"]
-dir = "./data"
+dir = "./data/csv/"
+
+# process(file, version, date, nlevels, tickers, dir)
 
 open(file, "r") do io
     clock = 0
@@ -29,8 +31,6 @@ open(file, "r") do io
         @info "message=$message"
     end
 end
-
-
 
 message_size = TotalViewITCH.get_message_size(io)
 message_type = TotalViewITCH.get_message_type(io)

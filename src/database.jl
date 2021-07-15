@@ -25,7 +25,7 @@ function build(dir, force = false)
             resp = input("Overwrite existing directory: $(abspath(dir))? (Y/N)")
             if lowercase(resp) != "y"
                 @info "Cancelled database build process"
-                return
+                return false
             end
         end
         # remove the existing directory
@@ -39,7 +39,7 @@ function build(dir, force = false)
     mkdir(joinpath(path, "messages"))
     mkdir(joinpath(path, "trades"))
     mkdir(joinpath(path, "noii"))
-    return nothing
+    return true
 end
 
 function teardown(dir)
