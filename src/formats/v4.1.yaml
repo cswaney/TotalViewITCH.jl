@@ -1,0 +1,15 @@
+T:
+  name: timestamp
+  format:
+    - UInt16
+S:
+  name: system
+  format:
+    - UInt16
+    - Char
+H:
+  name: trade action
+  format:
+    - UInt16
+    - 8 # String
+

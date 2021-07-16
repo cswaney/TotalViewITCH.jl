@@ -294,7 +294,7 @@ function unpack(s::IO, fmt::String)
 end
 
 function skipbytes(s::IO, n)
-    read(s, n)
+    read(s, n) # use seek instead???
     return
 end
 
