@@ -5,7 +5,7 @@ Data structure representing a limit order.
 """
 mutable struct Order
     name::String
-    side::String
+    side::Char
     price::Int
     shares::Int
 end
@@ -14,12 +14,12 @@ import Base.==
 (==)(a::Order, b::Order) = all([getfield(a, f) == getfield(b, f) for f in fieldnames(Order)])
 
 """
-add_order!(orders::Dict, message::Message)
+add_order!(orders::Dict, message::OrderMessage)
 
 Add an order to an order collection based on a new message.
 """
-function add!(orders::Dict{Int,Order}, message::Message)
-    if !(message.type in ["A", "F"])
+function add!(orders::Dict{Int,Order}, message::OrderMessage)
+    if !(message.type in ['A', 'F'])
         @error "Tried to add order from message type $(message.type)"
     end
     order = Order(
@@ -33,18 +33,18 @@ end
 
 
 """
-`update!(orders::Dict{Int,Order}, message::Message)`
+`update!(orders::Dict{Int,Order}, message::OrderMessage)`
 
 Find and update an order from a collection of orders based on an incoming message.
 """
-function update!(orders::Dict{Int,Order}, message::Message)
+function update!(orders::Dict{Int,Order}, message::OrderMessage)
     if message.refno in keys(orders)
-        if message.type in ["E", "X", "C"]  # execute, execute w/ price, cancel
+        if message.type in ['E', 'X', 'C']  # execute, execute w/ price, cancel
             orders[message.refno].shares -= message.shares
             if orders[message.refno].shares == 0  # remove order if completed
                 delete!(orders, message.refno)
             end
-        elseif message.type == "D"  # delete
+        elseif message.type == 'D'  # delete
             delete!(orders, message.refno)
         end
     else
@@ -67,7 +67,7 @@ mutable struct Book
     nlevels::Int  # number of levels to report
 end
 
-function Book(nlevels::Int; name::String = ".")
+function Book(nlevels::Int; name::String = "-")
     return Book(Dict{Int,Int}(), Dict{Int,Int}(), -1, -1, name, nlevels)
 end
 
@@ -89,44 +89,44 @@ end
 
 
 """
-`update(book::Book, message::Message)`
+`update(book::Book, message::OrderMessage)`
 
 Update an order book from a new message.
 """
-function update!(book::Book, message::Message)
+function update!(book::Book, message::OrderMessage)
 
     # double-check matching tickers
     if book.name != message.name
         @error "Book name $(book.name) doesn't match message name $(message.name)"
     end
 
-    if message.side == "B"
+    if message.side == 'B'
         if message.price in keys(book.bids)
-            if message.type in ["E", "C", "X", "D"]
+            if message.type in ['E', 'C', 'X', 'D']
                 book.bids[message.price] -= message.shares
                 if book.bids[message.price] == 0
                     delete!(book.bids, message.price)
                     @debug "Deleted price $(message.price) from bids"
                 end
-            elseif message.type in ["A", "F"]
+            elseif message.type in ['A', 'F']
                 book.bids[message.price] += message.shares
             end
-        elseif message.type in ["A", "F"]
+        elseif message.type in ['A', 'F']
             book.bids[message.price] = message.shares
             @debug "Added price $(message.price) to bids"
         end
-    elseif message.side == "S"
+    elseif message.side == 'S'
         if message.price in keys(book.asks)
-            if message.type in ["E", "C", "X", "D"]
+            if message.type in ['E', 'C', 'X', 'D']
                 book.asks[message.price] -= message.shares
                 if book.asks[message.price] == 0
                     delete!(book.asks, message.price)
                     @debug "Deleted price $(message.price) from asks"
                 end
-            elseif message.type in ["A", "F"]
+            elseif message.type in ['A', 'F']
                 book.asks[message.price] += message.shares
             end
-        elseif message.type in ["A", "F"]
+        elseif message.type in ['A', 'F']
             book.asks[message.price] = message.shares
             @debug "Added price $(message.price) to bids"
         end

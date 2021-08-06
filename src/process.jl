@@ -1,343 +1,159 @@
-const TYPES = ["T", "S", "H", "A", "F", "E", "C", "X", "D", "U", "P", "Q", "I"]
+# TODO: Check that no bytes are skipped—should read entire format string even if not used!
 
-get_message_size(io) = Int(unpack(io, "H")[1])
+read_string(io::IO, n) = rstrip(String(read(io, n)), ' ' )
 
-get_message_type(io) = String(unpack(io, "s")[1])
+function get_trade_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64))) # skipped
+    side = Char(read(io, Char))
+    shares = Int(ntoh(read(io, UInt32)))
+    name = rstrip(String(read(io, 8)), ' ')
+    price = Int(ntoh(read(io, UInt32)))
+    matchno = Int(ntoh(read(io, UInt64))) # skipped
+    return TradeMessage(date, sec, nano, 'P', name, side, price, shares)
+end
 
-function get_message(io, size, type, date, time, version)
-    if type in TYPES
-        return unpack_message_payload(io, type, date, time, version)
+function get_noii_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    paired = Int(ntoh(read(io, UInt64)))
+    imbalance = Int(ntoh(read(io, UInt64)))
+    direction = Char(read(io, Char))
+    name = rstrip(String(read(io, 8)), ' ')
+    far = Int(ntoh(read(io, UInt32)))
+    near = Int(ntoh(read(io, UInt32)))
+    current = Int(ntoh(read(io, UInt32)))
+    cross = Char(read(io, Char))
+    indicator = Char(read(io, Char)) # skipped
+    return NOIIMessage(date, sec, nano, 'I', name, paired, imbalance, direction, far, near, current, cross)
+end
+
+function get_timestamp_message(io, date)
+    sec = Int(ntoh(read(io, UInt32)))
+    return TimestampMessage(date, sec)
+end
+
+function get_system_event_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    event = Char(read(io, Char))
+    return SystemEventMessage(date, sec, nano, event)
+end
+
+function get_trade_action_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    name = read_string(io, 8)
+    event = Char(read(io, Char))
+    read(io, Char) # skipped
+    read_string(io, 4) # skipped
+    return TradeActionMessage(date, sec, nano, name, event)
+end
+
+function get_add_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    side = Char(read(io, Char))
+    shares = Int(ntoh(read(io, UInt32)))
+    name = read_string(io, 8)
+    price = Int(ntoh(read(io, UInt32)))
+    return AddMessage(date, sec, nano, refno, name, side, price, shares)
+end
+
+function get_add_mpid_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    side = Char(read(io, Char))
+    shares = Int(ntoh(read(io, UInt32)))
+    name = read_string(io, 8)
+    price = Int(ntoh(read(io, UInt32)))
+    mpid = read_string(io, 4)
+    return AddMessage(date, sec, nano, refno, name, side, price, shares; type='F', mpid=mpid)
+end
+
+function get_execute_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    matchno = Int(ntoh(read(io, UInt64))) # skipped
+    return ExecuteMessage(date, sec, nano, refno, shares)
+end
+
+function get_execute_price_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    matchno = Int(ntoh(read(io, UInt64))) # skipped
+    printable = Char(read(io, Char))
+    price = Int(ntoh(read(io, UInt32)))
+    return ExecuteMessage(date, sec, nano, refno, shares, type='C', price=price)
+end
+
+function get_cancel_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    return CancelMessage(date, sec, nano, refno, shares)
+end
+
+function get_delete_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    return DeleteMessage(date, sec, nano, refno)
+end
+
+function get_replace_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    newrefno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    price = Int(ntoh(read(io, UInt32)))
+    return ReplaceMessage(date, sec, nano, refno, newrefno, shares, price)
+end
+
+function get_cross_trade_message(io, date, sec)
+    nano = Int(ntoh(read(io, UInt32)))
+    shares = Int(ntoh(read(io, UInt64)))
+    name = read_string(io, 8)
+    price = Int(ntoh(read(io, UInt32)))
+    matchno = Int(ntoh(read(io, UInt64))) # skipped
+    event = Char(read(io, Char))
+    return CrossTradeMessage(date, sec, nano, shares, name, price, event)
+end
+
+get_message_size(io) = Int(ntoh(read(io, UInt16)))
+get_message_type(io) = Char(read(io, Char))
+
+function get_message(io, size, type, date, sec, version)
+    if type == 'T'
+        return get_timestamp_message(io, date)
+    elseif type == 'S'
+        return get_system_event_message(io, date, sec)
+    elseif type == 'H'
+        return get_trade_action_message(io, date, sec)
+    elseif type == 'A'
+        return get_add_message(io, date, sec)
+    elseif type == 'F'
+        return get_add_mpid_message(io, date, sec)
+    elseif type == 'E'
+        return get_execute_message(io, date, sec)
+    elseif type == 'C'
+        return get_execute_price_message(io, date, sec)
+    elseif type == 'X'
+        return get_cancel_message(io, date, sec)
+    elseif type == 'D'
+        return get_delete_message(io, date, sec)
+    elseif type == 'U'
+        return get_replace_message(io, date, sec)
+    elseif type == 'Q'
+        return get_cross_trade_message(io, date, sec)
+    elseif type == 'P'
+        return get_trade_message(io, date, sec)
+    elseif type == 'I'
+        return get_noii_message(io, date, sec)
     else
-        skipbytes(io, size - 1)
+        @debug "unsupported message type \'$(type)\' encountered——skipping message"
+        read(io, size - 1)
+        return nothing
     end
 end
-
-# TODO: record stock directory messages (allows you to see information for all listed stocks each day)
-
-# elseif type == "R"
-    # payload = unpack(io, "I8sssIs")
-    # message.sec = time
-    # message.nano = payload[1]
-    # message.name = rstrip(String(payload[2]), ' ')
-    # message.category = payload[3]
-    # message.status = payload[4]
-    # message.round_lot = payload[5]
-    # message.round_lot_only = payload[6]
-
-# TODO: REG SHO messages?
-# TODO: Market participant position messages?
-# TODO: Ignore non-printable execute w/ price ("C") messages?
-# TODO: Group cross-trade ("Q") messages with trade messages?
-# TODO: Broken trade messages?
-
-"""
-    unpack_message_payload(message_bytes, type, time, version)
-
-Unpack binary message data and return an out-going message.
-"""
-function unpack_message_payload(io, type, date, time, version)
-    if version == "5.0"
-        if type == "P"  # trade
-            message = TradeMessage(date, type = type)
-            payload = unpack(io, "IQsI8sIQ")
-            message.sec = time
-            message.nano = Int(payload[1])
-            # message.refno = Int(payload[2])
-            message.side = String(payload[3])
-            message.shares = Int(payload[4])
-            message.name = rstrip(String(payload[5]), ' ')
-            message.price = Int(payload[6])
-            # message.matchno = Int(payload[7])
-            return message
-        elseif type == "I"  # imbalance
-            message = NOIIMessage(date, type = type)
-            payload = unpack(io, "IQQs8sIIIss")
-            message.sec = time
-            message.nano = Int(payload[1])
-            message.paired = Int(payload[2])
-            message.imbalance = Int(payload[3])
-            message.direction = String(payload[4])
-            message.name = rstrip(String(payload[5]), ' ')
-            message.far = Int(payload[6])
-            message.near = Int(payload[7])
-            message.current = Int(payload[8])
-            message.cross = String(payload[9])
-            # message.indicator = String(payload[10])
-            return message
-        else  # message
-            message = Message(date, type = type)
-            if type == "S"  # system event
-                payload = unpack(io, "HHIs")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.name = "."
-                message.event = String(payload[2])
-            elseif type == "H"  # trade action
-                payload = unpack(io, "I8sss4s")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.name = rstrip(String(payload[2]), ' ')
-                message.event = String(payload[3])
-            elseif type == "A"  # add
-                payload = unpack(io, "IQsI8sI")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.side = String(payload[3])
-                message.shares = Int(payload[4])
-                message.name = rstrip(String(payload[5]), ' ')
-                message.price = Int(payload[6])
-            elseif type == "F"  # add w/ MPID
-                payload = unpack(io, "IQsI8sI4s")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.side = String(payload[3])
-                message.shares = Int(payload[4])
-                message.name = rstrip(String(payload[5]), ' ')
-                message.price = Int(payload[6])
-                message.mpid = rstrip(String(payload[7]), ' ')
-            elseif type == "E"  # execute
-                payload = unpack(io, "IQIQ")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.shares = Int(payload[3])
-            elseif type == "C"  # execute w/ price
-                payload = unpack(io, "IQIQsI")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.shares = Int(payload[3])
-                # message.matchno = Int(payload[4])
-                # message.printable = message.name = rstrip(String(payload[5]), ' ')
-                message.price = Int(payload[6])
-            elseif type == "X"  # cancel
-                payload = unpack(io, "IQI")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.shares = Int(payload[3])
-            elseif type == "D"  # delete
-                payload = unpack(io, "IQ")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-            elseif type == "U"  # replace
-                payload = unpack(io, "IQQII")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.newrefno = Int(payload[3])
-                message.shares = Int(payload[4])
-                message.price = Int(payload[5])
-            elseif type == "Q"  # cross-trade
-                payload = unpack(io, "IQ8sIQs")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.shares = Int(payload[2])
-                message.name = rstrip(String(payload[3]), ' ')
-                message.price = Int(payload[4])
-                # message.matchno = Int(payload[5])
-                message.event = String(payload[6])
-            end
-            return message
-        end       
-    elseif version == "4.1"
-        if type == "P"  # trade
-            message = TradeMessage(date, type = type)
-            payload = unpack(io, "IQsI8sIQ")
-            message.sec = time
-            message.nano = Int(payload[1])
-            # message.refno = Int(payload[2])
-            message.side = String(payload[3])
-            message.shares = Int(payload[4])
-            message.name = rstrip(String(payload[5]), ' ')
-            message.price = Int(payload[6])
-            # message.matchno = Int(payload[7])
-            return message
-        elseif type == "I"  # imbalance
-            message = NOIIMessage(date, type = type)
-            payload = unpack(io, "IQQs8sIIIss")
-            message.sec = time
-            message.nano = Int(payload[1])
-            message.paired = Int(payload[2])
-            message.imbalance = Int(payload[3])
-            message.direction = String(payload[4])
-            message.name = rstrip(String(payload[5]), ' ')
-            message.far = Int(payload[6])
-            message.near = Int(payload[7])
-            message.current = Int(payload[8])
-            message.cross = String(payload[9])
-            # message.indicator = String(payload[10])
-            return message
-        else  # message
-            message = Message(date, type = type)
-            if type == "T"  # time
-                payload = unpack(io, "I")
-                message.sec = Int(payload[1])
-                message.nano = 0
-            elseif type == "S"  # system event
-                payload = unpack(io, "Is")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.name = "."
-                message.event = String(payload[2])
-            elseif type == "H"  # trade action
-                payload = unpack(io, "I8sss4s")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.name = rstrip(String(payload[2]), ' ')
-                message.event = String(payload[3])
-            elseif type == "A"  # add
-                payload = unpack(io, "IQsI8sI")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.side = String(payload[3])
-                message.shares = Int(payload[4])
-                message.name = rstrip(String(payload[5]), ' ')
-                message.price = Int(payload[6])
-            elseif type == "F"  # add w/ MPID
-                payload = unpack(io, "IQsI8sI4s")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.side = String(payload[3])
-                message.shares = Int(payload[4])
-                message.name = rstrip(String(payload[5]), ' ')
-                message.price = Int(payload[6])
-                message.mpid = rstrip(String(payload[7]), ' ')
-            elseif type == "E"  # execute
-                payload = unpack(io, "IQIQ")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.shares = Int(payload[3])
-            elseif type == "C"  # execute w/ price
-                payload = unpack(io, "IQIQsI")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.shares = Int(payload[3])
-                # message.matchno = Int(payload[4])
-                # message.printable = message.name = rstrip(String(payload[5]), ' ')
-                message.price = Int(payload[6])
-            elseif type == "X"  # cancel
-                payload = unpack(io, "IQI")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.shares = Int(payload[3])
-            elseif type == "D"  # delete
-                payload = unpack(io, "IQ")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-            elseif type == "U"  # replace
-                payload = unpack(io, "IQQII")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.refno = Int(payload[2])
-                message.newrefno = Int(payload[3])
-                message.shares = Int(payload[4])
-                message.price = Int(payload[5])
-            elseif type == "Q"  # cross-trade
-                payload = unpack(io, "IQ8sIQs")
-                message.sec = time
-                message.nano = Int(payload[1])
-                message.shares = Int(payload[2])
-                message.name = rstrip(String(payload[3]), ' ')
-                message.price = Int(payload[4])
-                # message.matchno = Int(payload[5])
-                message.event = String(payload[6])
-            end
-            return message
-        end
-    end
-end
-
-
-"""
-    unpack(s::IOStream, fmt::String)
-
-Unpack a stream of binary data according to the given format. Equivalent to `struct.unpack` in Python.
-
-# Format Strings
-----------------
-Symbol      Julia Type      Bytes
-'c'         Char            1
-'b'         Int8            1
-'B'         UInt8           1
-'h'         Int16           2
-'H'         UInt16          2
-'i'         Int32           4
-'I'         UInt32          4
-'q'         Int64           8
-'Q'         UInt64          8
-'s'         String          Defined by preceeding integer (e.g., '4s')
-"""
-function unpack(s::IO, fmt::String)
-    list = []
-    idx = 1
-    n = 1
-    for symbol in fmt
-        try
-            n = parse(Int, symbol)
-        catch
-            append!(list, readbytes(s, symbol, n))
-            n = 1
-        end
-        idx += 1
-    end
-    return list
-end
-
-function skipbytes(s::IO, n)
-    read(s, n) # use seek instead???
-    return
-end
-
-function readbytes(s::IO, symbol)
-    if symbol == 'c'
-        return read(s, Char)
-    elseif symbol == 'b'
-        return ntoh(read(s, Int8))
-    elseif symbol == 'B'
-        return ntoh(read(s, UInt8))
-    elseif symbol == 'h'
-        return ntoh(read(s, Int16))
-    elseif symbol == 'H'
-        return ntoh(read(s, UInt16))
-    elseif symbol == 'i'
-        return ntoh(read(s, Int32))
-    elseif symbol == 'I'
-        return ntoh(read(s, UInt32))
-    elseif symbol == 'q'
-        return ntoh(read(s, Int64))
-    elseif symbol == 'Q'
-        return ntoh(read(s, UInt64))
-    elseif symbol == 's'
-        return read(s, Char)
-    elseif symbol == 'l'
-        # TODO: Int48
-    elseif symbol == 'L'
-        # TODO: UInt48
-    end
-end
-
-function readbytes(s::IO, symbol, n)
-    list = []
-    for _ in 1:n
-        push!(list, readbytes(s, symbol))
-    end
-    if symbol == 's'
-        return [string(list...)]
-    else
-        return list
-    end
-end
-
 
 """
     process(file, version, date, nlevels, tickers, path)
@@ -381,47 +197,40 @@ function process(file, version, date, nlevels, tickers, dir)
         @debug "message_size=$message_size"
         message_type = get_message_type(io)
         @debug "message_type=$message_type"
-        message = get_message(
-            io,
-            message_size,
-            message_type,
-            date,
-            clock,
-            version
-        )
+        message = get_message(io, message_size, message_type, date, clock, version)
         @debug "message=$message"
         message_reads += 1
 
         isnothing(message) && continue  # ignored message type
 
         # update clock
-        if message.type == "T"
+        if message.type == 'T'
             clock = message.sec
             if clock % 1800 == 0
                 @info "TIME=$(clock)"
-                @info "(messages_read=$(message_reads))"
-                @info "(elapsed_time=$(time() - start))"
+                elapsed_time = time() - start
+                @info "(messages_read=$(message_reads), elapsed_time=$(elapsed_time), rate=$(message_reads / elapsed_time)"
             end
             continue
         end
 
         # update system
-        if message.type == "S"
+        if message.type == 'S'
             @info "SYSTEM MESSAGE: $(message.event)"
-            if message.event == "C"  # end of messages
+            if message.event == 'C'  # end of messages
                 reading = false
             end
             continue
-        elseif message.type == "H"
+        elseif message.type == 'H'
             if message.name in tickers
                 @info "TRADE MESSAGE ($(message.name): $(message.event))"
-                if message.event == "H"  # halted (all US)
+                if message.event == 'H'  # halted (all US)
                     # TODO
-                elseif message.event == "P"  # paused (all US)
+                elseif message.event == 'P'  # paused (all US)
                     # TODO
-                elseif message.event == "Q"  # quotation only
+                elseif message.event == 'Q'  # quotation only
                     # TODO
-                elseif message.event == "T"  # trading on nasdaq
+                elseif message.event == 'T'  # trading on nasdaq
                     # TODO
                 end
             end
@@ -429,14 +238,14 @@ function process(file, version, date, nlevels, tickers, dir)
         end
 
         # complete message
-        if message.type == "U"
-            complete!(message, orders)
+        if message.type == 'U'
+            complete_replace_message!(message, orders)
             if message.name in tickers
                 @info "message: $(message)"
 
                 message, del_message, add_message = split(message)
-                complete!(del_message, orders)
-                complete!(add_message, orders)
+                complete_delete_message!(del_message, orders)
+                complete_replace_add_message!(add_message, orders)
 
                 # ProgressMeter.update!(progress, clock - 25200)
 
@@ -449,8 +258,8 @@ function process(file, version, date, nlevels, tickers, dir)
                 update!(books[message.name], add_message)
                 push!(snapshots[message.name], to_csv(books[message.name]))
             end
-        elseif message.type in ["E", "C", "X", "D"]
-            complete!(message, orders)
+        elseif message.type in ['E', 'C', 'X']
+            complete_execute_cancel_message!(message, orders)
             if message.name in tickers
                 @info "message: $(message)"
 
@@ -462,7 +271,20 @@ function process(file, version, date, nlevels, tickers, dir)
                 update!(books[message.name], message)
                 push!(snapshots[message.name], to_csv(books[message.name]))
             end
-        elseif message.type in ["A", "F"]
+        elseif message.type == 'D'
+            complete_delete_message!(message, orders)
+            if message.name in tickers
+                @info "message: $(message)"
+
+                # ProgressMeter.update!(progress, clock - 25200)
+
+                push!(messages[message.name], to_csv(message))
+                message_writes += 1
+                update!(orders, message)
+                update!(books[message.name], message)
+                push!(snapshots[message.name], to_csv(books[message.name]))
+            end
+        elseif message.type in ['A', 'F']
             if message.name in tickers
                 @info "message: $(message)"
 
@@ -474,14 +296,14 @@ function process(file, version, date, nlevels, tickers, dir)
                 update!(books[message.name], message)
                 push!(snapshots[message.name], to_csv(books[message.name]))
             end
-        elseif message.type == "P"
+        elseif message.type == 'P'
             # TODO
             # @info "trade message: $(message)"
             # if message.name in tickers
             #     push!(trades[message.name], to_csv(message))
             #     trade_writes += 1
             # end
-        elseif message.type in ["Q", "I"]
+        elseif message.type in ['Q', 'I']
             # TODO
             # @info "imbalance message: $(message)"
             # if message.name in tickers
