@@ -1,5 +1,7 @@
-using TotalViewITCH: add!, update!, to_csv
+using TotalViewITCH: add!, update!, to_csv, AddMessage, ExecuteMessage, CancelMessage, DeleteMessage
 using Dates
+using DataStructures: SortedDict
+using Base.Order: Reverse, Forward
 
 date = Date("2010-01-01")
 nlevels = 3
@@ -9,45 +11,49 @@ nlevels = 3
     orders = Dict{Int,Order}()
 
     # add order
-    add_message = Message(
+    add_message = AddMessage(
         date,
-        type = "A",
-        name = "AAPL",
-        side = "B",
-        price = 125.00,
-        shares = 500,
-        refno = 123456789
+        0,
+        0,
+        123456789,
+        "AAPL",
+        'B',
+        125,
+        500,
     )
     add!(orders, add_message)
-    @test get(orders, 123456789, nothing) == Order("AAPL", "B", 125.00, 500)
+    @test get(orders, 123456789, nothing) == Order("AAPL", 'B', 125, 500)
 
     # execute order
-    execute_message = Message(
+    execute_message = ExecuteMessage(
         date,
-        type = "E",
-        shares = 100,
-        refno = 123456789
+        0,
+        0,
+        123456789,
+        100,
     )
-    update!(orders, execute_message)
-    @test get(orders, 123456789, nothing) == Order("AAPL", "B", 125.00, 400)
+    TotalViewITCH.update!(orders, execute_message)
+    @test get(orders, 123456789, nothing) == Order("AAPL", 'B', 125, 400)
 
     # cancel order
-    cancel_message = Message(
+    cancel_message = CancelMessage(
         date,
-        type = "C",
-        shares = 100,
-        refno = 123456789
+        0,
+        0,
+        123456789,
+        100,
     )
-    update!(orders, cancel_message)
-    @test get(orders, 123456789, nothing) == Order("AAPL", "B", 125.00, 300)
+    TotalViewITCH.update!(orders, cancel_message)
+    @test get(orders, 123456789, nothing) == Order("AAPL", 'B', 125, 300)
 
     # delete
-    delete_message = Message(
+    delete_message = DeleteMessage(
         date,
-        type = "D",
-        refno = 123456789
+        0,
+        0,
+        123456789
     )
-    update!(orders, delete_message)
+    TotalViewITCH.update!(orders, delete_message)
     @test isnothing(get(orders, 123456789, nothing))
 end
 
@@ -56,57 +62,79 @@ end
     book = Book(nlevels, name = "AAPL")
 
     # add message
-    add_message = Message(
+    add_message = OrderMessage(
         date,
-        type = "A",
+        0,
+        0,
+        'A',
         name = "AAPL",
-        side = "B",
-        price = 125.00,
+        side = 'B',
+        price = 125,
         shares = 500
     )
-    update!(book, add_message)
-    @test get(book.bids, 125.00, nothing) == 500
+    TotalViewITCH.update!(book, add_message)
+    @test get(book.bids, 125, nothing) == 500
 
     # execute message
-    execute_message = Message(
+    execute_message = OrderMessage(
         date,
-        type = "E",
+        0,
+        0,
+        'E',
         name = "AAPL",
-        side = "B",
-        price = 125.00,
+        side = 'B',
+        price = 125,
         shares = 100
     )
-    update!(book, execute_message)
-    @test get(book.bids, 125.00, nothing) == 400
+    TotalViewITCH.update!(book, execute_message)
+    @test get(book.bids, 125, nothing) == 400
 
     # cancel message
-    cancel_message = Message(
+    cancel_message = OrderMessage(
         date,
-        type = "C",
+        0,
+        0,
+        'C',
         name = "AAPL",
-        side = "B",
-        price = 125.00,
+        side = 'B',
+        price = 125,
         shares = 100
     )
-    update!(book, cancel_message)
-    @test get(book.bids, 125.00, nothing) == 300
+    TotalViewITCH.update!(book, cancel_message)
+    @test get(book.bids, 125, nothing) == 300
 
     # delete message
-    delete_message = Message(
+    delete_message = OrderMessage(
         date,
-        type = "D",
+        0,
+        0,
+        'D',
         name = "AAPL",
-        side = "B",
-        price = 125.00,
+        side = 'B',
+        price = 125,
         shares = 300
     )
-    update!(book, delete_message)
-    @test isnothing(get(book.bids, 125.00, nothing))
+    TotalViewITCH.update!(book, delete_message)
+    @test isnothing(get(book.bids, 125, nothing))
 end
 
 @testset "Books.IO" begin
-    bids = Dict(100 => 500, 99 => 400, 98 => 200)
-    asks = Dict(103 => 400, 105 => 300, 106 => 200)
-    book = Book(bids, asks, 0, 0, "", 3)
+
+    book = Book(3)
+    book.bids = SortedDict(Base.Order.Reverse, 100 => 500, 99 => 400, 98 => 200)
+    book.asks = SortedDict(Base.Order.Forward, 103 => 400, 105 => 300, 106 => 200)
     @test to_csv(book) == "100,99,98,103,105,106,500,400,200,400,300,200"
+
+    book = Book(5)
+    book.bids = SortedDict(Base.Order.Reverse, 100 => 500, 99 => 400, 98 => 200)
+    book.asks = SortedDict(Base.Order.Forward, 103 => 400, 105 => 300, 106 => 200)
+    @test to_csv(book) == "100,99,98,,,103,105,106,,,500,400,200,,,400,300,200,,"
+
+    book = Book(5)
+    @test to_csv(book) == ",,,,,,,,,,,,,,,,,,,"
+
+    book = Book(2)
+    book.bids = SortedDict(Base.Order.Reverse, 100 => 500, 99 => 400, 98 => 200)
+    book.asks = SortedDict(Base.Order.Forward, 103 => 400, 105 => 300, 106 => 200)
+    @test to_csv(book) == "100,99,103,105,500,400,400,300"
 end
