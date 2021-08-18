@@ -33,12 +33,12 @@ function build(dir, force = false)
     end
 
     # build the database
-    @info "Creating database: $(abspath(dir))"
     path = mkdir(dir)
     mkdir(joinpath(path, "books"))
     mkdir(joinpath(path, "messages"))
     mkdir(joinpath(path, "trades"))
     mkdir(joinpath(path, "noii"))
+    @info "created database: $(abspath(dir))"
     return true
 end
 
