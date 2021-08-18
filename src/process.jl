@@ -123,7 +123,7 @@ end
 get_message_size(io) = Int(ntoh(read(io, UInt16)))
 get_message_type(io) = Char(read(io, Char))
 
-function get_message(io, size, type, date, sec, version)
+function get_message_body(io, size, type, date, sec, version)
     if type == 'T'
         return get_timestamp_message(io, date)
     elseif type == 'S'
@@ -155,6 +155,13 @@ function get_message(io, size, type, date, sec, version)
         read(io, size - 1)
         return nothing
     end
+end
+
+function get_message(io, date, clock, version)
+    message_size = TotalViewITCH.get_message_size(io)
+    message_type = TotalViewITCH.get_message_type(io)
+    message = TotalViewITCH.get_message_body(io, message_size, message_type, date, clock, version)
+    return message
 end
 
 """
@@ -195,14 +202,8 @@ function process(file, version, date, nlevels, tickers, dir)
 
     while reading
         # read message
-        message_size = get_message_size(io)
-        @debug "message_size=$message_size"
-        message_type = get_message_type(io)
-        @debug "message_type=$message_type"
-        message = get_message(io, message_size, message_type, date, clock, version)
-        @debug "message=$message"
+        message = get_message(io, date, clock, version)
         message_reads += 1
-
         isnothing(message) && continue  # ignored message type
 
         # update clock
