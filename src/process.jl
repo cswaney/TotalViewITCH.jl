@@ -1,6 +1,7 @@
 # TODO: Check that no bytes are skipped—should read entire format string even if not used!
 
 BUFFER_SIZE = 10 ^ 4
+REPORT_FREQ = 1800
 
 read_string(io::IO, n) = rstrip(String(read(io, n)), ' ' )
 
@@ -182,8 +183,6 @@ function process(file, version, date, nlevels, tickers, dir)
     success = build(dir)
     !success && return
 
-    BUFFER_SIZE = 10 ^ 4
-
     orders = Dict{Int,Order}()
     books = create_books(tickers, nlevels)
     snapshots, messages, trades, imbalances = create_recorders(tickers, dir, BUFFER_SIZE)
@@ -209,7 +208,7 @@ function process(file, version, date, nlevels, tickers, dir)
         # update clock
         if message.type == 'T'
             clock = message.sec
-            if clock % 1800 == 0
+            if clock % REPORT_FREQ == 0
                 @info "TIME=$(clock)"
                 elapsed_time = time() - start
                 @info "(messages_read=$(message_reads), elapsed_time=$(elapsed_time), rate=$(message_reads / elapsed_time)"
@@ -245,13 +244,10 @@ function process(file, version, date, nlevels, tickers, dir)
             complete_replace_message!(message, orders)
             if message.name in tickers
                 @info "message: $(message)"
-
                 del_message, add_message = split(message)
                 complete_delete_message!(del_message, orders)
                 complete_replace_add_message!(add_message, orders)
-
                 # ProgressMeter.update!(progress, clock - 25200)
-
                 push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 update!(orders, del_message)
@@ -265,9 +261,7 @@ function process(file, version, date, nlevels, tickers, dir)
             complete_execute_cancel_message!(message, orders)
             if message.name in tickers
                 @info "message: $(message)"
-
                 # ProgressMeter.update!(progress, clock - 25200)
-
                 push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 update!(orders, message)
@@ -278,9 +272,7 @@ function process(file, version, date, nlevels, tickers, dir)
             complete_delete_message!(message, orders)
             if message.name in tickers
                 @info "message: $(message)"
-
                 # ProgressMeter.update!(progress, clock - 25200)
-
                 push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 update!(orders, message)
@@ -290,9 +282,7 @@ function process(file, version, date, nlevels, tickers, dir)
         elseif message.type in ['A', 'F']
             if message.name in tickers
                 @info "message: $(message)"
-
                 # ProgressMeter.update!(progress, clock - 25200)
-
                 push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 add!(orders, message)
