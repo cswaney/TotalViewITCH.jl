@@ -90,7 +90,7 @@ end
 import Base.push!
 function push!(recorder::Recorder, line)
     @debug "pushing new line to recorder..."
-    recorder.buffer *= line * "\n"
+    recorder.buffer *= line
     recorder.linecount += 1
     if recorder.linecount == recorder.maxcount
         write(recorder)
