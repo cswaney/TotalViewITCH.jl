@@ -6,7 +6,7 @@ import Base.==
 function to_csv(message::T) where {T<:AbstractMessage}
     fields = fieldnames(T)  # T = typeof(message)
     vals = [getfield(message, f) for f in fields]
-    return join(string.(vals), ",")
+    return join(string.(vals), ",") * "\n"
 end
 
 
@@ -29,7 +29,7 @@ SystemEventMessage(date, sec, nano, event) = SystemMessage(date, sec, nano, 'S',
 TradeActionMessage(date, sec, nano, name, event) = SystemMessage(date, sec, nano, 'H', name, event)
 
 function to_csv(message::SystemMessage)
-    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.event),,,,,,,"
+    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.event),,,,,,,\n"
 end
 
 """
@@ -53,7 +53,7 @@ mutable struct OrderMessage <: AbstractMessage
 end
 
 function to_csv(message::OrderMessage)
-    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.event),$(message.name),$(message.side),$(message.price),$(message.shares),$(message.refno),$(message.newrefno),$(message.mpid)"
+    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.event),$(message.name),$(message.side),$(message.price),$(message.shares),$(message.refno),$(message.newrefno),$(message.mpid)\n"
 end
 
 function OrderMessage(date, sec, nano, type; event = '-', name = "-", side = '-', price = -1, shares = -1, refno = -1, newrefno = -1, mpid = "-")
@@ -92,7 +92,7 @@ split(message)
 Convert a replace message into an add and a delete.
 """
 function split(message::OrderMessage)
-    # message.type != "U" && error("cannot split message of type \"$(message.type)\"")
+    message.type != 'U' && error("cannot split message of type '$(message.type)'")
     del_message = OrderMessage(
         message.date,
         message.sec,
@@ -110,7 +110,7 @@ function split(message::OrderMessage)
         refno = message.refno,
         newrefno = message.newrefno # NOTE: should error if message.type != "U"
     )
-    return message, del_message, add_message
+    return del_message, add_message
 end
 
 
@@ -199,7 +199,7 @@ function NOIIMessage(date, sec, nano; type = '-', name = "-", paired = -1, imbal
 end
 
 function to_csv(message::NOIIMessage)
-    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.name),$(message.paired),$(message.imbalance),$(message.direction),$(message.far),$(message.near),$(message.current),$(message.cross)"
+    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.name),$(message.paired),$(message.imbalance),$(message.direction),$(message.far),$(message.near),$(message.current),$(message.cross)\n"
 end
 
 """
@@ -223,5 +223,5 @@ function TradeMessage(date, sec, nano; type = '-', name = "-", side = '-', price
 end
 
 function to_csv(message::TradeMessage)
-    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.name),$(message.side),$(message.price),$(message.shares)"
+    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.name),$(message.side),$(message.price),$(message.shares)\n"
 end
