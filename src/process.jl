@@ -1,5 +1,7 @@
 # TODO: Check that no bytes are skipped—should read entire format string even if not used!
 
+BUFFER_SIZE = 10 ^ 4
+
 read_string(io::IO, n) = rstrip(String(read(io, n)), ' ' )
 
 function get_trade_message(io, date, sec)
@@ -243,7 +245,7 @@ function process(file, version, date, nlevels, tickers, dir)
             if message.name in tickers
                 @info "message: $(message)"
 
-                message, del_message, add_message = split(message)
+                del_message, add_message = split(message)
                 complete_delete_message!(del_message, orders)
                 complete_replace_add_message!(add_message, orders)
 
@@ -340,7 +342,7 @@ function create_books(tickers, nlevels)
     return books
 end
 
-function create_recorders(tickers, dir, buffer_size = 10 ^ 4)
+function create_recorders(tickers, dir, buffer_size = BUFFER_SIZE)
     books = Dict{String,Recorder}()
     messages = Dict{String,Recorder}()
     trades = Dict{String,Recorder}()
