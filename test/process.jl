@@ -11,7 +11,7 @@ nlevels = 3
 tickers = ["ALT"]
 dir = "./data/csv/"
 
-# process(file, version, date, nlevels, tickers, dir)
+process(file, version, date, nlevels, tickers, dir)
 
 max_messages = 100000
 open(file, "r") do io
