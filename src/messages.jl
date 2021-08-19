@@ -172,7 +172,17 @@ function complete_delete_message!(message::OrderMessage, orders::Dict)
     end
     return message
 end
-
+function complete_message!(message::OrderMessage, orders::Dict)
+    if message.type == 'U'
+        complete_replace_message!(message, orders)
+    elseif message.type == 'G'
+        complete_replace_add_message!(message, orders)
+    elseif message.type in ['E', 'X', 'C']
+        complete_execute_cancel_message!(message, orders)
+    elseif message.type == 'D']
+        complete_delete_message!(message, orders)
+    end
+end
 
 """
 NOIIMessage

@@ -7,12 +7,12 @@ read_string(io::IO, n) = rstrip(String(read(io, n)), ' ' )
 
 function get_trade_message(io, date, sec)
     nano = Int(ntoh(read(io, UInt32)))
-    refno = Int(ntoh(read(io, UInt64))) # skipped
+    refno = Int(ntoh(read(io, UInt64)))
     side = Char(read(io, Char))
     shares = Int(ntoh(read(io, UInt32)))
     name = rstrip(String(read(io, 8)), ' ')
     price = Int(ntoh(read(io, UInt32)))
-    matchno = Int(ntoh(read(io, UInt64))) # skipped
+    matchno = Int(ntoh(read(io, UInt64)))
     return TradeMessage(date, sec, nano, 'P', name, side, price, shares)
 end
 
@@ -26,7 +26,7 @@ function get_noii_message(io, date, sec)
     near = Int(ntoh(read(io, UInt32)))
     current = Int(ntoh(read(io, UInt32)))
     cross = Char(read(io, Char))
-    indicator = Char(read(io, Char)) # skipped
+    indicator = Char(read(io, Char))
     return NOIIMessage(date, sec, nano, 'I', name, paired, imbalance, direction, far, near, current, cross)
 end
 
@@ -45,8 +45,8 @@ function get_trade_action_message(io, date, sec)
     nano = Int(ntoh(read(io, UInt32)))
     name = read_string(io, 8)
     event = Char(read(io, Char))
-    read(io, Char) # skipped
-    read_string(io, 4) # skipped
+    read(io, Char)
+    read_string(io, 4)
     return TradeActionMessage(date, sec, nano, name, event)
 end
 
@@ -75,7 +75,7 @@ function get_execute_message(io, date, sec)
     nano = Int(ntoh(read(io, UInt32)))
     refno = Int(ntoh(read(io, UInt64)))
     shares = Int(ntoh(read(io, UInt32)))
-    matchno = Int(ntoh(read(io, UInt64))) # skipped
+    matchno = Int(ntoh(read(io, UInt64)))
     return ExecuteMessage(date, sec, nano, refno, shares)
 end
 
@@ -83,7 +83,7 @@ function get_execute_price_message(io, date, sec)
     nano = Int(ntoh(read(io, UInt32)))
     refno = Int(ntoh(read(io, UInt64)))
     shares = Int(ntoh(read(io, UInt32)))
-    matchno = Int(ntoh(read(io, UInt64))) # skipped
+    matchno = Int(ntoh(read(io, UInt64)))
     printable = Char(read(io, Char))
     price = Int(ntoh(read(io, UInt32)))
     return ExecuteMessage(date, sec, nano, refno, shares, type='C', price=price)
@@ -116,7 +116,7 @@ function get_cross_trade_message(io, date, sec)
     shares = Int(ntoh(read(io, UInt64)))
     name = read_string(io, 8)
     price = Int(ntoh(read(io, UInt32)))
-    matchno = Int(ntoh(read(io, UInt64))) # skipped
+    matchno = Int(ntoh(read(io, UInt64)))
     event = Char(read(io, Char))
     return CrossTradeMessage(date, sec, nano, shares, name, price, event)
 end
@@ -124,6 +124,7 @@ end
 get_message_size(io) = Int(ntoh(read(io, UInt16)))
 get_message_type(io) = Char(read(io, Char))
 
+# TODO: add support for v5.0
 function get_message_body(io, size, type, date, sec, version)
     if type == 'T'
         return get_timestamp_message(io, date)
@@ -165,15 +166,14 @@ function get_message(io, date, clock, version)
     return message
 end
 
-"""
-    process(file, version, date, nlevels, tickers, path)
+"""process(file, version, date, nlevels, tickers, path)
 
 Read a binary data file and write message and order book data to file.
 
 # Arguments
 - `file`: location of file to read.
-- `version`: ITCH version number.
-- `date`: date to associate with output.
+- `version`: ITCH version number (`4.1` or `5.0`).
+- `date`: `Date` to associate with output.
 - `nlevels`: number of order book levels to track.
 - `tickers`: stock tickers to track.
 - `dir`: location to write output.
@@ -196,10 +196,8 @@ function process(file, version, date, nlevels, tickers, dir)
     reading = true
     clock = 0
     start = time()
-
-    # progress = Progress(59400 - 25200, 1)   # minimum update interval: 1 second
-
     while reading
+
         # read message
         message = get_message(io, date, clock, version)
         message_reads += 1
@@ -247,21 +245,18 @@ function process(file, version, date, nlevels, tickers, dir)
                 del_message, add_message = split(message)
                 complete_delete_message!(del_message, orders)
                 complete_replace_add_message!(add_message, orders)
-                # ProgressMeter.update!(progress, clock - 25200)
                 push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 update!(orders, del_message)
                 update!(books[message.name], del_message)
-                push!(snapshots[message.name], to_csv(books[message.name]))
                 add!(orders, add_message)
                 update!(books[message.name], add_message)
-                push!(snapshots[message.name], to_csv(books[message.name]))
+                push!(snapshots[message.name], to_csv(books[message.name])) # only save combined book update
             end
         elseif message.type in ['E', 'C', 'X']
             complete_execute_cancel_message!(message, orders)
             if message.name in tickers
                 @info "message: $(message)"
-                # ProgressMeter.update!(progress, clock - 25200)
                 push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 update!(orders, message)
@@ -272,7 +267,6 @@ function process(file, version, date, nlevels, tickers, dir)
             complete_delete_message!(message, orders)
             if message.name in tickers
                 @info "message: $(message)"
-                # ProgressMeter.update!(progress, clock - 25200)
                 push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 update!(orders, message)
@@ -282,7 +276,6 @@ function process(file, version, date, nlevels, tickers, dir)
         elseif message.type in ['A', 'F']
             if message.name in tickers
                 @info "message: $(message)"
-                # ProgressMeter.update!(progress, clock - 25200)
                 push!(messages[message.name], to_csv(message))
                 message_writes += 1
                 add!(orders, message)
@@ -308,7 +301,7 @@ function process(file, version, date, nlevels, tickers, dir)
     end
 
     # clean up
-    @info "Cleaning up..."
+    @info "cleaning up..."
     for name in tickers
         write(snapshots[name])
         write(messages[name])
@@ -318,11 +311,12 @@ function process(file, version, date, nlevels, tickers, dir)
 
     stop = time()
     elapsed_time = stop - start
-    @info "Elapsed time: $(elapsed_time)"
-    @info "Messages read: $(message_reads)"
-    @info "Messages written: $(message_writes)"
+    @info "\n** FINISHED **"
+    @info "elapsed time: $(elapsed_time)"
+    @info "messages read: $(message_reads)"
+    @info "messages written: $(message_writes)"
     @info "NOII written: $(noii_writes)"
-    @info "Trades written: $(trade_writes)"
+    @info "trades written: $(trade_writes)"
 end
 
 function create_books(tickers, nlevels)
