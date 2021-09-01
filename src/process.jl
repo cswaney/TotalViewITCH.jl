@@ -315,7 +315,7 @@ function process(file, version, date, nlevels, tickers, dir)
     @info "elapsed time: $(elapsed_time)"
     @info "messages read: $(message_reads)"
     @info "messages written: $(message_writes)"
-    @info "NOII written: $(noii_writes)"
+    @info "noii written: $(noii_writes)"
     @info "trades written: $(trade_writes)"
 end
 
