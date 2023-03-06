@@ -103,8 +103,8 @@ end
 
 import Base.write
 function write(recorder::Recorder; mode = "a+")
-    @debug "writing recorder to file..."
-    open(recorder.file, mode) do io
+    @debug "writing recorder contents to file..."
+    open(recorder.file, mode; lock = true) do io
         Base.write(io, recorder.buffer)
     end
 end
