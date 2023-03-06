@@ -7,12 +7,12 @@ read_string(io::IO, n) = rstrip(String(read(io, n)), ' ' )
 
 function get_trade_message(io, date, sec)
     nano = Int(ntoh(read(io, UInt32)))
-    refno = Int(ntoh(read(io, UInt64)))
+    _ = Int(ntoh(read(io, UInt64))) # refno
     side = Char(read(io, Char))
     shares = Int(ntoh(read(io, UInt32)))
     name = rstrip(String(read(io, 8)), ' ')
     price = Int(ntoh(read(io, UInt32)))
-    matchno = Int(ntoh(read(io, UInt64)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
     return TradeMessage(date, sec, nano, 'P', name, side, price, shares)
 end
 
@@ -26,7 +26,7 @@ function get_noii_message(io, date, sec)
     near = Int(ntoh(read(io, UInt32)))
     current = Int(ntoh(read(io, UInt32)))
     cross = Char(read(io, Char))
-    indicator = Char(read(io, Char))
+    _ = Char(read(io, Char)) # indicator
     return NOIIMessage(date, sec, nano, 'I', name, paired, imbalance, direction, far, near, current, cross)
 end
 
@@ -75,7 +75,7 @@ function get_execute_message(io, date, sec)
     nano = Int(ntoh(read(io, UInt32)))
     refno = Int(ntoh(read(io, UInt64)))
     shares = Int(ntoh(read(io, UInt32)))
-    matchno = Int(ntoh(read(io, UInt64)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
     return ExecuteMessage(date, sec, nano, refno, shares)
 end
 
@@ -83,8 +83,8 @@ function get_execute_price_message(io, date, sec)
     nano = Int(ntoh(read(io, UInt32)))
     refno = Int(ntoh(read(io, UInt64)))
     shares = Int(ntoh(read(io, UInt32)))
-    matchno = Int(ntoh(read(io, UInt64)))
-    printable = Char(read(io, Char))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
+    _ = Char(read(io, Char)) # printable
     price = Int(ntoh(read(io, UInt32)))
     return ExecuteMessage(date, sec, nano, refno, shares, type='C', price=price)
 end
@@ -116,7 +116,7 @@ function get_cross_trade_message(io, date, sec)
     shares = Int(ntoh(read(io, UInt64)))
     name = read_string(io, 8)
     price = Int(ntoh(read(io, UInt32)))
-    matchno = Int(ntoh(read(io, UInt64)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
     event = Char(read(io, Char))
     return CrossTradeMessage(date, sec, nano, shares, name, price, event)
 end
