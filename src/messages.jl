@@ -4,7 +4,7 @@ import Base.==
 (==)(a::T, b::T) where {T<:AbstractMessage} = all([getfield(a, f) == getfield(b, f) for f in fieldnames(T)])
 
 function to_csv(message::T) where {T<:AbstractMessage}
-    fields = fieldnames(T)  # T = typeof(message)
+    fields = fieldnames(T)
     vals = [getfield(message, f) for f in fields]
     return join(string.(vals), ",") * "\n"
 end
