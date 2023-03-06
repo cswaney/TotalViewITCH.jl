@@ -20,7 +20,7 @@ Scaffold a database at `dir`. The structure of the database is:
 function build(dir; force = false)
     if isdir(dir)
         if !force
-            resp = input("Overwrite existing directory: $(abspath(dir))? (Y/N)")
+            resp = input("Overwrite existing directory: $(abspath(dir))? (y/n)")
             if lowercase(resp) != "y"
                 @info "Database build process cancelled"
                 return false
@@ -28,7 +28,6 @@ function build(dir; force = false)
         end
         rm(dir, force = true, recursive = true)
     end
-
     path = mkdir(dir)
     mkdir(joinpath(path, "books"))
     mkdir(joinpath(path, "messages"))
