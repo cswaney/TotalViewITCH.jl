@@ -17,43 +17,45 @@ Scaffold a database at `dir`. The structure of the database is:
          |- aapl.csv
          |- ...
 """
-function build(dir, force = false)
-
-    # check if the directory exists
+function build(dir; force = false)
     if isdir(dir)
         if !force
             resp = input("Overwrite existing directory: $(abspath(dir))? (Y/N)")
             if lowercase(resp) != "y"
-                @info "Cancelled database build process"
+                @info "Database build process cancelled"
                 return false
             end
         end
-        # remove the existing directory
         rm(dir, force = true, recursive = true)
     end
 
-    # build the database
     path = mkdir(dir)
     mkdir(joinpath(path, "books"))
     mkdir(joinpath(path, "messages"))
     mkdir(joinpath(path, "trades"))
     mkdir(joinpath(path, "noii"))
-    @info "created database: $(abspath(dir))"
+    @info "Created database: $(abspath(dir))"
     return true
 end
 
-function teardown(dir)
-    resp = input("Confirm teardown of database: $(abspath(dir))? (Y/N)")
-    if lowercase(resp) == "y"
+function teardown(dir; force = false)
+    !isdir(dir) && throw(ArgumentError("Unable to tear down database (directory $(abspath(dir)) not found)."))
+    if force
         rm(dir, force = true, recursive = true)
         @info "Database removed"
-        return nothing
+        return true        
+    else
+        resp = input("Confirm teardown of database: $(abspath(dir))? (y/n)")
+        if lowercase(resp) == "y"
+            rm(dir, force = true, recursive = true)
+            @info "Database removed"
+            return true
+        end
+        @info "Cancelled database teardown process"
     end
-    @info "Cancelled database teardown process"
+    return false
 end
 
-# NOTE: Juno not a true dependency!
-# import Juno.input
 function input(prompt)
     println(prompt)
     resp = readline()
