@@ -192,8 +192,10 @@ function process(file, version, date, nlevels, tickers, dir)
     books = create_books(tickers, nlevels)
     snapshots, messages, trades, imbalances = create_recorders(tickers, dir, BUFFER_SIZE)
 
+    @info "Reading bytes..."
     io = open(file, "r")
-    io = IOBuffer(read(io)) # read entire file -> Vector{UInt8}
+    t = @elapsed io = IOBuffer(read(io)) # read entire file -> Vector{UInt8}
+    @info "done (elapsed: $(t))"
     message_reads = 0
     message_writes = 0
     noii_writes = 0
@@ -214,7 +216,7 @@ function process(file, version, date, nlevels, tickers, dir)
             if clock % REPORT_FREQ == 0
                 @info "TIME=$(clock)"
                 elapsed_time = time() - start
-                @info "(messages_read=$(message_reads), elapsed_time=$(elapsed_time), rate=$(message_reads / elapsed_time)"
+                @info "(messages_read=$(message_reads), elapsed_time=$(elapsed_time), rate=$(message_reads / elapsed_time) (msg/sec)"
             end
             continue
         end
@@ -327,7 +329,7 @@ end
 function create_books(tickers, nlevels)
     books = Dict{String,Book}()
     for name in tickers
-        books[name] = Book(nlevels, name = name)
+        books[name] = Book(name, nlevels)
     end
     return books
 end
@@ -339,10 +341,10 @@ function create_recorders(tickers, dir, buffer_size = BUFFER_SIZE)
     imbalances = Dict{String,Recorder}()
     for name in tickers
         file = string(name, ".csv")
-        books[name] = Recorder(buffer_size, string(dir, "books/", file))
-        messages[name] = Recorder(buffer_size, string(dir, "messages/", file))
-        trades[name] = Recorder(buffer_size, string(dir, "trades/", file))
-        imbalances[name] = Recorder(buffer_size, string(dir, "noii/", file))
+        books[name] = Recorder(buffer_size, string(dir, "/books/", file))
+        messages[name] = Recorder(buffer_size, string(dir, "/messages/", file))
+        trades[name] = Recorder(buffer_size, string(dir, "/trades/", file))
+        imbalances[name] = Recorder(buffer_size, string(dir, "/noii/", file))
     end
     return books, messages, trades, imbalances
 end

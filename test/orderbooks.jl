@@ -59,7 +59,7 @@ end
 
 @testset "Books" begin
     # setup
-    book = Book(nlevels, name = "AAPL")
+    book = Book("AAPL", nlevels)
 
     # add message
     add_message = OrderMessage(
@@ -120,20 +120,20 @@ end
 
 @testset "Books.IO" begin
 
-    book = Book(3)
+    book = Book("", 3)
     book.bids = SortedDict(Base.Order.Reverse, 100 => 500, 99 => 400, 98 => 200)
     book.asks = SortedDict(Base.Order.Forward, 103 => 400, 105 => 300, 106 => 200)
     @test to_csv(book) == "100,99,98,103,105,106,500,400,200,400,300,200"
 
-    book = Book(5)
+    book = Book("", 5)
     book.bids = SortedDict(Base.Order.Reverse, 100 => 500, 99 => 400, 98 => 200)
     book.asks = SortedDict(Base.Order.Forward, 103 => 400, 105 => 300, 106 => 200)
     @test to_csv(book) == "100,99,98,,,103,105,106,,,500,400,200,,,400,300,200,,"
 
-    book = Book(5)
+    book = Book("", 5)
     @test to_csv(book) == ",,,,,,,,,,,,,,,,,,,"
 
-    book = Book(2)
+    book = Book("", 2)
     book.bids = SortedDict(Base.Order.Reverse, 100 => 500, 99 => 400, 98 => 200)
     book.asks = SortedDict(Base.Order.Forward, 103 => 400, 105 => 300, 106 => 200)
     @test to_csv(book) == "100,99,103,105,500,400,400,300"
