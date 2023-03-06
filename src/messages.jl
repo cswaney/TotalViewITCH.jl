@@ -115,14 +115,26 @@ end
 
 
 """
-complete_replace_message!(message, orders)
-complete_replace_add_message!(message, orders)
-complete_execute_cancel_message!(message, orders)
-complete_delete_message!(message, orders)
+    complete_message!(message::OrderMessage, orders::Dict)
 
 Fill in missing message data by matching it to its reference order.
 """
+function complete_message!(message::OrderMessage, orders::Dict)
+    if message.type == 'U'
+        complete_replace_message!(message, orders)
+    elseif message.type == 'G'
+        complete_replace_add_message!(message, orders)
+    elseif message.type in ['E', 'X', 'C']
+        complete_execute_cancel_message!(message, orders)
+    elseif message.type == 'D'
+        complete_delete_message!(message, orders)
+    else
+        throw(ArgumentError("cannot complete message of type $(message.type)"))
+    end
+end
+
 function complete_replace_message!(message::OrderMessage, orders::Dict)
+    message.type != 'U' && throw(ArgumentError("not a replace message (type=$(message.type))"))
     ref_order = get(orders, message.refno, nothing)
     if !isnothing(ref_order)
         message.name = ref_order.name
@@ -133,7 +145,9 @@ function complete_replace_message!(message::OrderMessage, orders::Dict)
     end
     return message
 end
+
 function complete_replace_add_message!(message::OrderMessage, orders::Dict)
+    message.type != 'G' && throw(ArgumentError("not an add message (type=$(message.type))"))
     ref_order = get(orders, message.refno, nothing)
     if !isnothing(ref_order)
         message.type = 'A'
@@ -147,7 +161,9 @@ function complete_replace_add_message!(message::OrderMessage, orders::Dict)
     end
     return message
 end
+
 function complete_execute_cancel_message!(message::OrderMessage, orders::Dict)
+    !(message.type in ['E', 'X', 'C']) && throw(ArgumentError("not an execute or cancel message (type=$(message.type))"))
     ref_order = get(orders, message.refno, nothing)
     if !isnothing(ref_order)
         message.name = ref_order.name
@@ -159,7 +175,9 @@ function complete_execute_cancel_message!(message::OrderMessage, orders::Dict)
     end
     return message
 end
+
 function complete_delete_message!(message::OrderMessage, orders::Dict)
+    message.type != 'D' && throw(ArgumentError("not a delete message (type=$(message.type))"))
     ref_order = get(orders, message.refno, nothing)
     if !isnothing(ref_order)
         message.name = ref_order.name
@@ -172,17 +190,7 @@ function complete_delete_message!(message::OrderMessage, orders::Dict)
     end
     return message
 end
-function complete_message!(message::OrderMessage, orders::Dict)
-    if message.type == 'U'
-        complete_replace_message!(message, orders)
-    elseif message.type == 'G'
-        complete_replace_add_message!(message, orders)
-    elseif message.type in ['E', 'X', 'C']
-        complete_execute_cancel_message!(message, orders)
-    elseif message.type == 'D'
-        complete_delete_message!(message, orders)
-    end
-end
+
 
 """
 NOIIMessage
