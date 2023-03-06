@@ -92,7 +92,7 @@ split(message)
 Convert a replace message into an add and a delete.
 """
 function split(message::OrderMessage)
-    message.type != 'U' && error("cannot split message of type '$(message.type)'")
+    message.type != 'U' && throw(ArgumentError("cannot split message of type '$(message.type)'"))
     del_message = OrderMessage(
         message.date,
         message.sec,
