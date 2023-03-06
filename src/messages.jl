@@ -179,7 +179,7 @@ function complete_message!(message::OrderMessage, orders::Dict)
         complete_replace_add_message!(message, orders)
     elseif message.type in ['E', 'X', 'C']
         complete_execute_cancel_message!(message, orders)
-    elseif message.type == 'D']
+    elseif message.type == 'D'
         complete_delete_message!(message, orders)
     end
 end
