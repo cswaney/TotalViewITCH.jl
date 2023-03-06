@@ -124,38 +124,43 @@ end
 get_message_size(io) = Int(ntoh(read(io, UInt16)))
 get_message_type(io) = Char(read(io, Char))
 
-# TODO: add support for v5.0
 function get_message_body(io, size, type, date, sec, version)
-    if type == 'T'
-        return get_timestamp_message(io, date)
-    elseif type == 'S'
-        return get_system_event_message(io, date, sec)
-    elseif type == 'H'
-        return get_trade_action_message(io, date, sec)
-    elseif type == 'A'
-        return get_add_message(io, date, sec)
-    elseif type == 'F'
-        return get_add_mpid_message(io, date, sec)
-    elseif type == 'E'
-        return get_execute_message(io, date, sec)
-    elseif type == 'C'
-        return get_execute_price_message(io, date, sec)
-    elseif type == 'X'
-        return get_cancel_message(io, date, sec)
-    elseif type == 'D'
-        return get_delete_message(io, date, sec)
-    elseif type == 'U'
-        return get_replace_message(io, date, sec)
-    elseif type == 'Q'
-        return get_cross_trade_message(io, date, sec)
-    elseif type == 'P'
-        return get_trade_message(io, date, sec)
-    elseif type == 'I'
-        return get_noii_message(io, date, sec)
+    if version == "4.1"
+        if type == 'T'
+            return get_timestamp_message(io, date)
+        elseif type == 'S'
+            return get_system_event_message(io, date, sec)
+        elseif type == 'H'
+            return get_trade_action_message(io, date, sec)
+        elseif type == 'A'
+            return get_add_message(io, date, sec)
+        elseif type == 'F'
+            return get_add_mpid_message(io, date, sec)
+        elseif type == 'E'
+            return get_execute_message(io, date, sec)
+        elseif type == 'C'
+            return get_execute_price_message(io, date, sec)
+        elseif type == 'X'
+            return get_cancel_message(io, date, sec)
+        elseif type == 'D'
+            return get_delete_message(io, date, sec)
+        elseif type == 'U'
+            return get_replace_message(io, date, sec)
+        elseif type == 'Q'
+            return get_cross_trade_message(io, date, sec)
+        elseif type == 'P'
+            return get_trade_message(io, date, sec)
+        elseif type == 'I'
+            return get_noii_message(io, date, sec)
+        else
+            @debug "unsupported message type $(type) encountered——skipping message"
+            read(io, size - 1)
+            return nothing
+        end
+    elseif version == "5.0"
+        throw(ErrorException("Invalid version.\n\n Version $(version) is not currently supported."))
     else
-        @debug "unsupported message type \'$(type)\' encountered——skipping message"
-        read(io, size - 1)
-        return nothing
+        throw(ArgumentError("Invalid version $(version)"))
     end
 end
 
@@ -172,7 +177,7 @@ Read a binary data file and write message and order book data to file.
 
 # Arguments
 - `file`: location of file to read.
-- `version`: ITCH version number (`4.1` or `5.0`).
+- `version`: ITCH version number (4.1 or 5.0).
 - `date`: `Date` to associate with output.
 - `nlevels`: number of order book levels to track.
 - `tickers`: stock tickers to track.
