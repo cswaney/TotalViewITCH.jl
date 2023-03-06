@@ -3,9 +3,9 @@ using Base.Order
 using Base.Iterators
 
 """
-`Order`
+    `Order`
 
-Data structure representing a limit order.
+A limit order.
 """
 mutable struct Order
     name::String
@@ -18,13 +18,13 @@ import Base.==
 (==)(a::Order, b::Order) = all([getfield(a, f) == getfield(b, f) for f in fieldnames(Order)])
 
 """
-add_order!(orders::Dict, message::OrderMessage)
+    add_order!(orders::Dict, message::OrderMessage)
 
 Add an order to an order collection based on a new message.
 """
 function add!(orders::Dict{Int,Order}, message::OrderMessage)
     if !(message.type in ['A', 'F'])
-        @error "invalid to add order message type ($(message.type))"
+        throw(ArgumentError("cannot add order message type ($(message.type)) to orders"))
     end
     order = Order(
         message.name,
@@ -37,12 +37,12 @@ end
 
 
 """
-`update!(orders::Dict{Int,Order}, message::OrderMessage)`
+    `update!(orders::Dict{Int,Order}, message::OrderMessage)`
 
-Find and update an order from a collection of orders based on an incoming message.
+Find and update an order from a collection of orders based on a new message.
 """
 function update!(orders::Dict{Int,Order}, message::OrderMessage)
-    if message.refno in keys(orders)
+    if haskey(orders, message.refno)
         if message.type in ['E', 'X', 'C']  # execute, execute w/ price, cancel
             orders[message.refno].shares -= message.shares
             if orders[message.refno].shares == 0  # remove order if completed
@@ -52,7 +52,7 @@ function update!(orders::Dict{Int,Order}, message::OrderMessage)
             delete!(orders, message.refno)
         end
     else
-        @warn "failed to update order for message: $(message.refno)"
+        @warn "Unable to match message: message number $(message.refno) not found"
     end
 end
 
