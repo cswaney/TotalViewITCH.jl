@@ -104,12 +104,7 @@ end
 Update an order book from a new message.
 """
 function update!(book::Book, message::OrderMessage)
-
-    # double-check matching tickers
-    if book.name != message.name
-        @error "Book name ($(book.name)) doesn't match Message name ($(message.name))"
-    end
-
+    book.name != message.name && throw(ArgumentError("Book name ($(book.name)) doesn't match message name ($(message.name))"))
     if message.side == 'B'
         if message.price in keys(book.bids)
             if message.type in ['E', 'C', 'X', 'D']
