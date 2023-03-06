@@ -60,9 +60,11 @@ end
 """
 `Book`
 
-Data structure representing an order book.
+A limit order book.
 
-- `nlevels::Int: the number of levels reported`
+# Arguments
+- `name::String`: the associated security name/ticker
+- `nlevels::Int`: the number of levels reported
 """
 mutable struct Book
     bids::SortedDict{Int,Int}
@@ -73,7 +75,7 @@ mutable struct Book
     nlevels::Int
 end
 
-function Book(nlevels::Int; name::String = "-")
+function Book(name::String, nlevels::Int)
     return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, name, nlevels)
 end
 
