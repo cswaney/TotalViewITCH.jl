@@ -23,15 +23,14 @@ import Base.==
 Add an order to an order collection based on a new message.
 """
 function add!(orders::Dict{Int,Order}, message::OrderMessage)
-    if !(message.type in ['A', 'F'])
-        throw(ArgumentError("cannot add order message type ($(message.type)) to orders"))
-    end
+    !(message.type in ['A', 'F']) && throw(ArgumentError("Unable to add order (invalid message type $(message.type))"))
     order = Order(
         message.name,
         message.side,
         message.price,
         message.shares
     )
+    haskey(orders, message.refno) && throw(ErrorException("Unable to add order (duplicate reference number $(message.refno))"))
     orders[message.refno] = order
 end
 
@@ -52,7 +51,7 @@ function update!(orders::Dict{Int,Order}, message::OrderMessage)
             delete!(orders, message.refno)
         end
     else
-        @warn "Unable to match message: message number $(message.refno) not found"
+        @warn "Unable to update order (missing reference number $(message.refno))"
     end
 end
 
@@ -91,7 +90,7 @@ function to_csv(book::Book)
 end
 
 function fillto!(s::String, m, n)
-    m < 0 && @error "negative number of values provided"
+    m < 0 && throw(DomainError(m, "negative number of values provided"))
     if m < n
         s *= join(repeat([","], n - m))
     end
@@ -108,6 +107,7 @@ function update!(book::Book, message::OrderMessage)
     if message.side == 'B'
         if message.price in keys(book.bids)
             if message.type in ['E', 'C', 'X', 'D']
+                book.bids[message.price] < message.shares && throw(ErrorException("Message shares exceed available shares (name=$(message.name), price=$(message.price), shares=$(message.shares))"))
                 book.bids[message.price] -= message.shares
                 if book.bids[message.price] == 0
                     delete!(book.bids, message.price)
@@ -123,6 +123,7 @@ function update!(book::Book, message::OrderMessage)
     elseif message.side == 'S'
         if message.price in keys(book.asks)
             if message.type in ['E', 'C', 'X', 'D']
+                book.asks[message.price] < message.shares && throw(ErrorException("Message shares exceed available shares (name=$(message.name), price=$(message.price), shares=$(message.shares))"))
                 book.asks[message.price] -= message.shares
                 if book.asks[message.price] == 0
                     delete!(book.asks, message.price)
