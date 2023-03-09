@@ -85,13 +85,12 @@ function CrossTradeMessage(date, sec, nano, shares, name, price, event)
 end
 
 
-import Base.split
 """
-split(message)
+split_message(message)
 
 Convert a replace message into an add and a delete.
 """
-function split(message::OrderMessage)
+function split_message(message::OrderMessage)
     message.type != 'U' && throw(ArgumentError("cannot split message of type '$(message.type)'"))
     del_message = OrderMessage(
         message.date,
@@ -108,7 +107,7 @@ function split(message::OrderMessage)
         price = message.price,
         shares = message.shares,
         refno = message.refno,
-        newrefno = message.newrefno # NOTE: should error if message.type != "U"
+        newrefno = message.newrefno
     )
     return del_message, add_message
 end
