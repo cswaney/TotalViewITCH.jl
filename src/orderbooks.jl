@@ -103,7 +103,7 @@ end
 Update an order book from a new message.
 """
 function update!(book::Book, message::OrderMessage)
-    book.name != message.name && throw(ArgumentError("Book name ($(book.name)) doesn't match message name ($(message.name))"))
+    book.name != message.name && throw(ArgumentError("Unable to update order book (book name ($(book.name)) doesn't match message name ($(message.name))"))
     if message.side == 'B'
         if message.price in keys(book.bids)
             if message.type in ['E', 'C', 'X', 'D']
@@ -119,8 +119,10 @@ function update!(book::Book, message::OrderMessage)
         elseif message.type in ['A', 'F']
             book.bids[message.price] = message.shares
             @debug "added price $(message.price) to bids"
+        else
+            throw(ErrorException("Unable to update order book (non-add message price $(message.price) not in bids)"))
         end
-    elseif message.side == 'S'
+    elseif message.side == 'A'
         if message.price in keys(book.asks)
             if message.type in ['E', 'C', 'X', 'D']
                 book.asks[message.price] < message.shares && throw(ErrorException("Message shares exceed available shares (name=$(message.name), price=$(message.price), shares=$(message.shares))"))
@@ -135,6 +137,8 @@ function update!(book::Book, message::OrderMessage)
         elseif message.type in ['A', 'F']
             book.asks[message.price] = message.shares
             @debug "added price $(message.price) to bids"
+        else
+            throw(ErrorException("Unable to update order book (non-add message price $(message.price) not in asks)"))
         end
     end
     return book
