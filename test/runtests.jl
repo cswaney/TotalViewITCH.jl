@@ -9,7 +9,7 @@ using Dates
     end
 
     @testset "orderbooks" begin
-        # include("orderbooks.jl")
+        include("orderbooks.jl")
     end
 
     @testset "database" begin
