@@ -153,8 +153,8 @@ function get_message_body(io, size, type, date, sec, version)
         elseif type == 'I'
             return get_noii_message(io, date, sec)
         else
-            @debug "unsupported message type $(type) encountered——skipping message"
             read(io, size - 1)
+            @warn "Unable to get message body (unsupported message type $(type))."
             return nothing
         end
     elseif version == "5.0"
@@ -249,7 +249,7 @@ function process(file, version, date, nlevels, tickers, dir)
             complete_replace_message!(message, orders)
             if message.name in tickers
                 @info "message: $(message)"
-                del_message, add_message = split(message)
+                del_message, add_message = split_message(message)
                 complete_delete_message!(del_message, orders)
                 complete_replace_add_message!(add_message, orders)
                 push!(messages[message.name], to_csv(message))
@@ -308,7 +308,7 @@ function process(file, version, date, nlevels, tickers, dir)
     end
 
     # clean up
-    @info "cleaning up..."
+    @info "Cleaning up..."
     for name in tickers
         write(snapshots[name])
         write(messages[name])
@@ -319,11 +319,11 @@ function process(file, version, date, nlevels, tickers, dir)
     stop = time()
     elapsed_time = stop - start
     @info "\n** FINISHED **"
-    @info "elapsed time: $(elapsed_time)"
-    @info "messages read: $(message_reads)"
-    @info "messages written: $(message_writes)"
-    @info "noii written: $(noii_writes)"
-    @info "trades written: $(trade_writes)"
+    @info "Elapsed time: $(elapsed_time)"
+    @info "Messages read: $(message_reads)"
+    @info "Messages written: $(message_writes)"
+    @info "NOII written: $(noii_writes)"
+    @info "Trades written: $(trade_writes)"
 end
 
 function create_books(tickers, nlevels)
