@@ -104,6 +104,10 @@ Update an order book from a new message.
 """
 function update!(book::Book, message::OrderMessage)
     book.name != message.name && throw(ArgumentError("Unable to update order book (book name ($(book.name)) doesn't match message name ($(message.name))"))
+    ismissing(message.sec) && throw(ArgumentError("Unable to update order book (message is missing seconds timestamp)"))
+    ismissing(message.nano) && throw(ArgumentError("Unable to update order book (message is missing nanoseconds timestamp)"))
+    book.sec = message.sec
+    book.nano = message.nano
     if message.side == 'B'
         if message.price in keys(book.bids)
             if message.type in ['E', 'C', 'X', 'D']
