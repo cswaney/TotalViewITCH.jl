@@ -122,7 +122,7 @@ function update!(book::Book, message::OrderMessage)
         else
             throw(ErrorException("Unable to update order book (non-add message price $(message.price) not in bids)"))
         end
-    elseif message.side == 'A'
+    elseif message.side == 'S'
         if message.price in keys(book.asks)
             if message.type in ['E', 'C', 'X', 'D']
                 book.asks[message.price] < message.shares && throw(ErrorException("Message shares exceed available shares (name=$(message.name), price=$(message.price), shares=$(message.shares))"))
@@ -140,6 +140,8 @@ function update!(book::Book, message::OrderMessage)
         else
             throw(ErrorException("Unable to update order book (non-add message price $(message.price) not in asks)"))
         end
+    else
+        throw(ArgumentError("Unable to update order book (unknown message side $(messaeg.side))"))
     end
     return book
 end
