@@ -86,7 +86,7 @@ function to_csv(book::Book)
     ask_prices = fillto!(join(take(keys(book.asks), n), ","), max(nasks - 1, 0), n - 1)
     bid_shares = fillto!(join(take(values(book.bids), n), ","), max(nbids - 1, 0), n - 1)
     ask_shares = fillto!(join(take(values(book.asks), n), ","), max(nasks - 1, 0), n - 1)
-    return join([bid_prices, ask_prices, bid_shares, ask_shares], ",") * "\n"
+    return join([book.sec, book.nano, bid_prices, ask_prices, bid_shares, ask_shares], ",") * "\n"
 end
 
 function fillto!(s::String, m, n)
