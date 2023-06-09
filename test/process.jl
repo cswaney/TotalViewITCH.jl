@@ -4,14 +4,30 @@ Pkg.activate(".")
 using TotalViewITCH
 using Dates
 
+
+# @testset "Messages" begin
+    
+#     system_message = ... # convert to bytes
+#     @test get_message(trade_message) == TotalViewITCH.SystemMessage(...)
+
+#     trade_message = ...
+#     @test get_message(trade_message) == TotalViewITCH.TradeMessage(...)
+    
+#     order_message = ...
+#     @test get_message(order_message) == TotalViewITCH.OrderMessage(...)
+   
+#     noii_message = ...
+#     @test get_message(noii_message) == TotalViewITCH.NOIIMessage(...)
+
+# end
+
+
 file = "./data/bin/S031413-v41.txt"
 version = "4.1"
 date = Date("2013-03-14")
 nlevels = 3
 tickers = ["ALT"]
 dir = "./data/csv/"
-
-process(file, version, date, nlevels, tickers, dir)
 
 max_messages = 100000
 open(file, "r") do io
