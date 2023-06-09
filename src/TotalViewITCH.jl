@@ -6,6 +6,6 @@ include("messages.jl")
 include("orderbooks.jl")
 include("database.jl")
 include("process.jl")
-export process, AbstractMessage, OrderMessage, SystemMessage, NOIIMessage, TradeMessage, Order, Book
+export process, build, teardown, AbstractMessage, OrderMessage, SystemMessage, NOIIMessage, TradeMessage, Order, Book, Recorder
 
 end # module

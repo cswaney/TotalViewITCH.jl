@@ -3,7 +3,7 @@ using Base.Order
 using Base.Iterators
 
 """
-    `Order`
+    Order
 
 A limit order.
 """
@@ -17,12 +17,12 @@ end
 import Base.==
 (==)(a::Order, b::Order) = all([getfield(a, f) == getfield(b, f) for f in fieldnames(Order)])
 
-"""
-    add_order!(orders::Dict, message::OrderMessage)
-
-Add an order to an order collection based on a new message.
-"""
 function add!(orders::Dict{Int,Order}, message::OrderMessage)
+    """
+        add_order!(orders::Dict, message::OrderMessage)
+    
+    Add an order to an order collection based on a new message.
+    """
     !(message.type in ['A', 'F']) && throw(ArgumentError("Unable to add order (invalid message type $(message.type))"))
     order = Order(
         message.name,
@@ -35,12 +35,12 @@ function add!(orders::Dict{Int,Order}, message::OrderMessage)
 end
 
 
-"""
-    `update!(orders::Dict{Int,Order}, message::OrderMessage)`
-
-Find and update an order from a collection of orders based on a new message.
-"""
 function update!(orders::Dict{Int,Order}, message::OrderMessage)
+    """
+        `update!(orders::Dict{Int,Order}, message::OrderMessage)`
+    
+    Find and update an order from a collection of orders based on a new message.
+    """
     if haskey(orders, message.refno)
         if message.type in ['E', 'X', 'C']  # execute, execute w/ price, cancel
             orders[message.refno].shares -= message.shares
@@ -57,7 +57,7 @@ end
 
 
 """
-`Book`
+    Book
 
 A limit order book.
 
@@ -97,12 +97,12 @@ function fillto!(s::String, m, n)
     return s
 end
 
-"""
-`update(book::Book, message::OrderMessage)`
-
-Update an order book from a new message.
-"""
 function update!(book::Book, message::OrderMessage)
+    """
+        `update(book::Book, message::OrderMessage)`
+    
+    Update an order book from a new message.
+    """
     book.name != message.name && throw(ArgumentError("Unable to update order book (book name ($(book.name)) doesn't match message name ($(message.name))"))
     ismissing(message.sec) && throw(ArgumentError("Unable to update order book (message is missing seconds timestamp)"))
     ismissing(message.nano) && throw(ArgumentError("Unable to update order book (message is missing nanoseconds timestamp)"))

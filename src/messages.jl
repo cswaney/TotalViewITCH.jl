@@ -11,7 +11,7 @@ end
 
 
 """
-SystemMessage
+    SystemMessage
 
 Data structure representing system updates.
 """
@@ -33,7 +33,7 @@ function to_csv(message::SystemMessage)
 end
 
 """
-OrderMessage
+    OrderMessage
 
 Data structure representing order book updates.
 """
@@ -85,12 +85,12 @@ function CrossTradeMessage(date, sec, nano, shares, name, price, event)
 end
 
 
-"""
-split_message(message)
-
-Convert a replace message into an add and a delete.
-"""
 function split_message(message::OrderMessage)
+    """
+        split_message(message)
+    
+    Convert a replace message into an add and a delete.
+    """
     message.type != 'U' && throw(ArgumentError("cannot split message of type '$(message.type)'"))
     del_message = OrderMessage(
         message.date,
@@ -113,12 +113,12 @@ function split_message(message::OrderMessage)
 end
 
 
-"""
-    complete_message!(message::OrderMessage, orders::Dict)
-
-Fill in missing message data by matching it to its reference order.
-"""
 function complete_message!(message::OrderMessage, orders::Dict)
+    """
+        complete_message!(message::OrderMessage, orders::Dict)
+    
+    Fill in missing message data by matching it to its reference order.
+    """
     if message.type == 'U'
         complete_replace_message!(message, orders)
     elseif message.type == 'G'
@@ -192,7 +192,7 @@ end
 
 
 """
-NOIIMessage
+    NOIIMessage
 
 Data structure representing net order imbalance indicator messages and cross trade messages.
 """
@@ -220,7 +220,7 @@ function to_csv(message::NOIIMessage)
 end
 
 """
-TradeMessage
+    TradeMessage
 
 Data structure representing trades.
 """

@@ -37,6 +37,11 @@ function build(dir; force = false)
     return true
 end
 
+"""
+    teardown(dir; <kwargs>)
+
+Delete a database at `dir`.
+"""
 function teardown(dir; force = false)
     !isdir(dir) && throw(ArgumentError("Unable to tear down database (directory $(abspath(dir)) not found)."))
     if force
@@ -63,7 +68,7 @@ end
 
 
 """
-    `Recorder`
+    Recorder
 
 A data structure to manage writing data to CSV files.
 

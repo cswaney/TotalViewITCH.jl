@@ -171,7 +171,8 @@ function get_message(io, date, clock, version)
     return message
 end
 
-"""process(file, version, date, nlevels, tickers, path)
+"""
+    process(file, version, date, nlevels, tickers, path)
 
 Read a binary data file and write message and order book data to file.
 
