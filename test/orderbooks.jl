@@ -87,26 +87,26 @@ end
     @test_throws ErrorException TotalViewITCH.update!(book, execute_message)
 
     # add message (ask)
-    add_message = OrderMessage(date, 0, 0, 'A'; name="AAPL", side='A', price=130, shares=500)
+    add_message = OrderMessage(date, 0, 0, 'A'; name="AAPL", side='S', price=130, shares=500)
     TotalViewITCH.update!(book, add_message)
     @test get(book.asks, 130, nothing) == 500
 
     # execute (ask, missing)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='A', price=135, shares=100)
+    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='S', price=135, shares=100)
     @test_throws ErrorException TotalViewITCH.update!(book, execute_message)
 
     # execute message (ask, under)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='A', price=130, shares=100)
+    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='S', price=130, shares=100)
     TotalViewITCH.update!(book, execute_message)
     @test get(book.asks, 130, nothing) == 400
 
     # execute message (ask, exhaust)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='A', price=130, shares=400)
+    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='S', price=130, shares=400)
     TotalViewITCH.update!(book, execute_message)
     @test isnothing(get(book.asks, 130, nothing))
 
     # execute message (ask, over)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='A', price=130, shares=100)
+    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='S', price=130, shares=100)
     @test_throws ErrorException TotalViewITCH.update!(book, execute_message)
 
 end
@@ -116,18 +116,18 @@ end
     book = Book("", 3)
     book.bids = SortedDict(Base.Order.Reverse, 100 => 500, 99 => 400, 98 => 200)
     book.asks = SortedDict(Base.Order.Forward, 103 => 400, 105 => 300, 106 => 200)
-    @test to_csv(book) == "100,99,98,103,105,106,500,400,200,400,300,200\n"
+    @test to_csv(book) == "-1,-1,100,99,98,103,105,106,500,400,200,400,300,200\n"
 
     book = Book("", 5)
     book.bids = SortedDict(Base.Order.Reverse, 100 => 500, 99 => 400, 98 => 200)
     book.asks = SortedDict(Base.Order.Forward, 103 => 400, 105 => 300, 106 => 200)
-    @test to_csv(book) == "100,99,98,,,103,105,106,,,500,400,200,,,400,300,200,,\n"
+    @test to_csv(book) == "-1,-1,100,99,98,,,103,105,106,,,500,400,200,,,400,300,200,,\n"
 
     book = Book("", 5)
-    @test to_csv(book) == ",,,,,,,,,,,,,,,,,,,\n"
+    @test to_csv(book) == "-1,-1,,,,,,,,,,,,,,,,,,,,\n"
 
     book = Book("", 2)
     book.bids = SortedDict(Base.Order.Reverse, 100 => 500, 99 => 400, 98 => 200)
     book.asks = SortedDict(Base.Order.Forward, 103 => 400, 105 => 300, 106 => 200)
-    @test to_csv(book) == "100,99,103,105,500,400,400,300\n"
+    @test to_csv(book) == "-1,-1,100,99,103,105,500,400,400,300\n"
 end

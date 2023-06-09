@@ -145,7 +145,7 @@ function update!(book::Book, message::OrderMessage)
             throw(ErrorException("Unable to update order book (non-add message price $(message.price) not in asks)"))
         end
     else
-        throw(ArgumentError("Unable to update order book (unknown message side $(messaeg.side))"))
+        throw(ArgumentError("Unable to update order book (unknown message side $(message.side))"))
     end
     return book
 end
