@@ -191,6 +191,8 @@ function write(recorder::Recorder; mode = "a+")
 end
 
 
+const Writable = Union{AbstractMessage,Book}
+
 """
 
 A object that stores messages and (async?) inserts into a MongoDB whenever it is full.
@@ -205,12 +207,12 @@ A object that stores messages and (async?) inserts into a MongoDB whenever it is
 `buffer`: a fixed-length array that stores messages.
 `ptr`: a pointer to the current location in the buffer.
 """
-mutable struct MongoWriter{T<:AbstractMessage,N}
+mutable struct MongoWriter{T<:Writable,N}
     col::Collection
     buffer::Vector{T} # could be StaticVector?
     ptr::Int
 
-    function MongoWriter{T,N}(col::Collection) where {T<:AbstractMessage,N}
+    function MongoWriter{T,N}(col::Collection) where {T<:Writable,N}
         return new(col, Vector{T}(undef, N), 1)
     end
 end
@@ -232,10 +234,10 @@ function Base.write(w::MongoWriter)
     return resp.reply["nInserted"]
 end
 
-Base.position() = w.ptr
+Base.position(w::MongoWriter) = w.ptr
 
 function Base.reset(w)
     w.ptr = 1
 end
 
-bsonify(m::AbstractMessage) = BSON(JSON.json(m)) # using JSON b/c we want inserts to be JSON-compatible
+bsonify(m::Writable) = BSON(JSON.json(m)) # using JSON b/c we want inserts to be JSON-compatible
