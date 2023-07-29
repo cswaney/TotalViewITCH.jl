@@ -51,3 +51,12 @@ This package is intended for an academic audience.
 
 
 ### v5.0
+
+### MongoDB
+
+To set up a MongoDB with Docker, run:
+```bash
+docker run -p 27017:27017 --volume path/to/data/db:/data/db mongo:latest
+```
+
+This will expose the database to your local machine on port `27017`.
