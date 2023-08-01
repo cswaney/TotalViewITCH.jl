@@ -63,7 +63,7 @@ A limit order book.
 
 # Arguments
 - `name::String`: the associated security name/ticker
-- `nlevels::Int`: the number of levels reported
+- `nlevels::Int`: the number of levels reported in tabular format.
 """
 mutable struct Book
     bids::SortedDict{Int,Int}
@@ -71,11 +71,15 @@ mutable struct Book
     sec::Int
     nano::Int
     name::String
-    nlevels::Int
+    nlevels::Union{Nothing,Int}
 end
 
 function Book(name::String, nlevels::Int)
     return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, name, nlevels)
+end
+
+function Boook(name)
+    return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, name, nothing)
 end
 
 function to_csv(book::Book)

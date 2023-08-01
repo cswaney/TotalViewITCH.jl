@@ -55,23 +55,69 @@ function build_mongo(url; db_name="totalview-itch")
     db = client[db_name]
 
     # get/create collections
+    system = db["system"]
     messages = db["messages"]
-    orderbooks = db["orderbooks"]
     trades = db["trades"]
     noii = db["noii"]
+    books = db["books"]
 
     # create indices
     resp = create_index(
         db,
-        messages,
+        system,
         BSON(
-            "ticker" => 1,
-            "date" => 1
+            "name" => 1,
+            "date" => 1,
         ),
-        ["unique" => true],
-        "ticker_date"
+        ["unique" => false],
+        "name_date"
     )
 
+    resp = create_index(
+        db,
+        messages,
+        BSON(
+            "name" => 1,
+            "date" => 1
+        ),
+        ["unique" => false],
+        "name_date"
+    )
+
+    resp = create_index(
+        db,
+        trades,
+        BSON(
+            "name" => 1,
+            "date" => 1
+        ),
+        ["unique" => false],
+        "name_date"
+    )
+
+    resp = create_index(
+        db,
+        noii,
+        BSON(
+            "name" => 1,
+            "date" => 1
+        ),
+        ["unique" => false],
+        "name_date"
+    )
+
+    resp = create_index(
+        db,
+        books,
+        BSON(
+            "name" => 1,
+            "date" => 1
+        ),
+        ["unique" => false],
+        "name_date"
+    )
+
+    return db
 end
 
 function create_index(db, collection::Collection, key::BSON, options::AbstractArray{Pair{String,T}}, name::String) where {T<:Any}
@@ -92,6 +138,66 @@ function create_index(db, collection::Collection, key::BSON, options::AbstractAr
         # TODO capture the error and raise?
         return println(resp)
     end
+end
+
+find_existing(names, date, db) = filter(
+    name -> check_exists(name, date, db), names
+)
+
+function check_exists(name, date, db)
+    """Check if the database already contains data for the given name-date."""
+
+    res = Mongoc.find_one(
+        db["messages"],
+        Mongoc.BSON(
+            "name" => name,
+            "date" => date,
+        )
+    )
+
+    return !isnothing(res)
+end
+
+function clean_up(name, date, db)
+    """Delete data for name-date."""
+
+    Mongoc.delete_many(
+        db["system"],
+        Mongoc.BSON(
+            "name" => name,
+            "date" => date
+        )
+    )
+    Mongoc.delete_many(
+        db["messages"],
+        Mongoc.BSON(
+            "name" => name,
+            "date" => date
+        )
+    )
+    Mongoc.delete_many(
+        db["trades"],
+        Mongoc.BSON(
+            "name" => name,
+            "date" => date
+        )
+    )
+    Mongoc.delete_many(
+        db["noii"],
+        Mongoc.BSON(
+            "name" => name,
+            "date" => date
+        )
+    )
+    Mongoc.delete_many(
+        db["books"],
+        Mongoc.BSON(
+            "name" => name,
+            "date" => date
+        )
+    )
+
+    return true
 end
 
 """
