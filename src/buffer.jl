@@ -12,13 +12,13 @@ struct Buffer{T<:Backend,S<:Writable}
     date::Date
     maxsize::Int
     cnt::Int # number of items flushed
-    ptrs::Dict{String,Vector{Int}}
+    ptrs::Dict{String,Int}
 end
 
 function Buffer{T, S}(tickers, backend::T, collection, date, maxsize) where {T<:Backend,S<:Writable}
     data = Dict([t => Vector{S}(undef, maxsize) for t in tickers])
     ptrs = Dict([t => 1 for t in tickers])
-    return Buffer{T}(data, backend, collection, date, maxsize, 0, ptrs)
+    return Buffer{T,S}(data, backend, collection, date, maxsize, 0, ptrs)
 end
 
 function Base.write(b::Buffer, item)
