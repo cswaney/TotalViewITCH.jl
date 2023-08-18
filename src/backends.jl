@@ -32,7 +32,7 @@ function check_exists(b::FileSystem)
 end
 
 function check_exists(date::Date, ticker::String, b::FileSystem)
-    return isdir(joinpath(b.url, ticker, date))
+    return isdir(joinpath(b.url, ticker, string(date)))
 end
 
 """
