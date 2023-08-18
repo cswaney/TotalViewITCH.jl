@@ -13,41 +13,23 @@ parser("data/bin/S022717-v50.txt", ["A"]; date=Date("2017-02-27"), version=5.1)
 ```
 """
 struct Parser{T<:Backend}
-    url
-    orders
-    books
-    message_buffer
-    noii_buffer
-    trades_buffer
-    orderbook_buffer
+    backend::T
 end
 
-function Parser{T}(url; maxsize = 10_000) where {T<:Backend}
-    orders = Dict{Int,Order}()
-    books = Dict([name => Book(name)])
-    message_buffer = Buffer{T}(parser, maxsize)
-    trades_buffer = Buffer{T}(parser, maxsize)
-    noii_buffer = Buffer{T}(parser, maxsize)
-    orderbook_buffer = Buffer{T}(parser, maxsize)
+Parser{T}(url::String) where {T<:Backend} = Parser(T(url))
 
-    return Parser{T}(url, orders, books, message_buffer, noii_buffer, trades_buffer, orderbook_buffer)
-end
+function (parser::Parser{T})(file, date, tickers, version; nlevels=5, buffer_size=10_000) where {T<:Backend}
 
-function (parser::Parser)(file, tickers; kwargs...)
-
-    date = getkey(kwargs, "date", extract_date(file))
-    version = getkey(kwargs, "version", extract_version(file))
-
-    duplicates = filter(t -> check_exists(date, t, parser.backend), tickers)
-    if length(duplicates) > 0
-        resp = input("Found order messages for the following tickers: $duplicates\n. Do you want to replace data for these tickers? (Y/n)")
+    duplicate_tickers = filter(t -> check_exists(date, t, parser.backend), tickers)
+    if length(duplicate_tickers) > 0
+        resp = input("Found order messages for the following tickers: $duplicate_tickers\n. Do you want to replace data for these tickers? (Y/n)")
         if lowercase(resp) == "y"
-            for ticker in duplicates
+            for ticker in duplicate_tickers
                 @info "Cleaning up ticker: $ticker"
                 clean(date, ticker, parser.backend)
             end
         else
-            tickers = setdiff(tickers, duplicates)
+            tickers = setdiff(tickers, duplicates_tickers)
             if length(tickers) == 0 
                 println("No new tickers found. Exiting.")
             else
@@ -55,7 +37,14 @@ function (parser::Parser)(file, tickers; kwargs...)
             end
         end
     end
-    
+ 
+    orders = Dict{Int,Order}()
+    books = Dict([t => Book(t, nlevels) for t in tickers])
+    messages_buffer = Buffer{T,OrderMessage}(tickers, parser.backend, "messages", date, buffer_size)
+    trades_buffer = Buffer{T,TradeMessage}(tickers, parser.backend, "trades", date, buffer_size)
+    noii_buffer = Buffer{T,NOIIMessage}(tickers, parser.backend, "noii", date, buffer_size)
+    orderbooks_buffer = Buffer{T,Book}(tickers, parser.backend, "orderbooks", date, buffer_size)
+
     @info "Reading bytes..."
     t = @elapsed io = IOBuffer(read(open(file, "r"))) # read entire file -> Vector{UInt8}
     @info "done (elapsed: $(t))"
@@ -114,9 +103,6 @@ function (parser::Parser)(file, tickers; kwargs...)
                 @info "message: $(message)"
                 write(messages_buffer, message)
                 message_writes += 1
-
-                process_message(message, parser)
-
                 del_message, add_message = split_message(message)
                 complete_delete_message!(del_message, orders)
                 complete_replace_add_message!(add_message, orders)
