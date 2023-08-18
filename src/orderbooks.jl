@@ -8,14 +8,14 @@ using Base.Iterators
 A limit order.
 """
 mutable struct Order
-    name::String
+    ticker::String
     side::Char
     price::Int
     shares::Int
 end
 
 import Base.==
-(==)(a::Order, b::Order) = all([getfield(a, f) == getfield(b, f) for f in fieldnames(Order)])
+(==)(a::Order, b::Order) = all([getfield(a, f) == getfield(b, f) for f in fieldtickers(Order)])
 
 function add!(orders::Dict{Int,Order}, message::OrderMessage)
     """
@@ -25,7 +25,7 @@ function add!(orders::Dict{Int,Order}, message::OrderMessage)
     """
     !(message.type in ['A', 'F']) && throw(ArgumentError("Unable to add order (invalid message type $(message.type))"))
     order = Order(
-        message.name,
+        message.ticker,
         message.side,
         message.price,
         message.shares
@@ -62,7 +62,7 @@ end
 A limit order book.
 
 # Arguments
-- `name::String`: the associated security name/ticker
+- `ticker::String`: the associated security ticker.
 - `nlevels::Int`: the number of levels reported in tabular format.
 """
 mutable struct Book
@@ -70,16 +70,16 @@ mutable struct Book
     asks::SortedDict{Int,Int}
     sec::Int
     nano::Int
-    name::String
+    ticker::String
     nlevels::Union{Nothing,Int}
 end
 
-function Book(name::String, nlevels::Int)
-    return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, name, nlevels)
+function Book(ticker::String, nlevels::Int)
+    return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, ticker, nlevels)
 end
 
-function Boook(name)
-    return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, name, nothing)
+function Boook(ticker)
+    return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, ticker, nothing)
 end
 
 function to_csv(book::Book)
@@ -107,7 +107,7 @@ function update!(book::Book, message::OrderMessage)
     
     Update an order book from a new message.
     """
-    book.name != message.name && throw(ArgumentError("Unable to update order book (book name ($(book.name)) doesn't match message name ($(message.name))"))
+    book.ticker != message.ticker && throw(ArgumentError("Unable to update order book (book ticker ($(book.ticker)) doesn't match message ticker ($(message.ticker))"))
     ismissing(message.sec) && throw(ArgumentError("Unable to update order book (message is missing seconds timestamp)"))
     ismissing(message.nano) && throw(ArgumentError("Unable to update order book (message is missing nanoseconds timestamp)"))
     book.sec = message.sec
@@ -115,7 +115,7 @@ function update!(book::Book, message::OrderMessage)
     if message.side == 'B'
         if message.price in keys(book.bids)
             if message.type in ['E', 'C', 'X', 'D']
-                book.bids[message.price] < message.shares && throw(ErrorException("Message shares exceed available shares (name=$(message.name), price=$(message.price), shares=$(message.shares))"))
+                book.bids[message.price] < message.shares && throw(ErrorException("Message shares exceed available shares (ticker=$(message.ticker), price=$(message.price), shares=$(message.shares))"))
                 book.bids[message.price] -= message.shares
                 if book.bids[message.price] == 0
                     delete!(book.bids, message.price)
@@ -133,7 +133,7 @@ function update!(book::Book, message::OrderMessage)
     elseif message.side == 'S'
         if message.price in keys(book.asks)
             if message.type in ['E', 'C', 'X', 'D']
-                book.asks[message.price] < message.shares && throw(ErrorException("Message shares exceed available shares (name=$(message.name), price=$(message.price), shares=$(message.shares))"))
+                book.asks[message.price] < message.shares && throw(ErrorException("Message shares exceed available shares (ticker=$(message.ticker), price=$(message.price), shares=$(message.shares))"))
                 book.asks[message.price] -= message.shares
                 if book.asks[message.price] == 0
                     delete!(book.asks, message.price)

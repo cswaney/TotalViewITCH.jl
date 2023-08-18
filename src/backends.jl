@@ -193,7 +193,7 @@ function check_exists(date::Date, ticker::String, b::MongoDB)
         res = Mongoc.find_one(
             client[b.db_name]["messages"],
             Mongoc.BSON(
-                "name" => name,
+                "ticker" => ticker,
                 "date" => date,
             )
         )
@@ -230,44 +230,44 @@ function build(b::MongoDB; force=false)
             db,
             messages,
             Mongoc.BSON(
-                "name" => 1,
+                "ticker" => 1,
                 "date" => 1
             ),
             ["unique" => false],
-            "name_date"
+            "ticker_date"
         )
 
         resp = create_index(
             db,
             trades,
             Mongoc.BSON(
-                "name" => 1,
+                "ticker" => 1,
                 "date" => 1
             ),
             ["unique" => false],
-            "name_date"
+            "ticker_date"
         )
 
         resp = create_index(
             db,
             noii,
             Mongoc.BSON(
-                "name" => 1,
+                "ticker" => 1,
                 "date" => 1
             ),
             ["unique" => false],
-            "name_date"
+            "ticker_date"
         )
 
         resp = create_index(
             db,
             books,
             Mongoc.BSON(
-                "name" => 1,
+                "ticker" => 1,
                 "date" => 1
             ),
             ["unique" => false],
-            "name_date"
+            "ticker_date"
         )
 
         @info "Created database: $(b.db_name)"
@@ -297,18 +297,18 @@ function find(date::Date, ticker, collection, b::MongoDB)
     client = Mongoc.Client(b.url)
     Mongoc.find(client[b.db_name][collection],
         Mongoc.BSON(
-            "name" => ticker,
+            "ticker" => ticker,
             "date" => string(date)
         )
     )
 end
 
-function create_index(db, collection::Mongoc.Collection, key::Mongoc.BSON, options::AbstractArray{Pair{String,T}}, name::String) where {T<:Any}
+function create_index(db, collection::Mongoc.Collection, key::Mongoc.BSON, options::AbstractArray{Pair{String,T}}, ticker::String) where {T<:Any}
     cmd = Mongoc.BSON(
-        "createIndexes" => collection.name,
+        "createIndexes" => collection.ticker,
         "indexes" => [
             Mongoc.BSON(
-                "name" => "$(name)_index",
+                "ticker" => "$(ticker)_index",
                 "key" => key,
                 options...
             )
@@ -328,28 +328,28 @@ function clean(date::Date, ticker::String, b::MongoDB)
         Mongoc.delete_many(
             client[b.db_name]["messages"],
             Mongoc.BSON(
-                "name" => ticker,
+                "ticker" => ticker,
                 "date" => string(date)
             )
         )
         Mongoc.delete_many(
             client[b.db_name]["trades"],
             Mongoc.BSON(
-                "name" => ticker,
+                "ticker" => ticker,
                 "date" => string(date)
             )
         )
         Mongoc.delete_many(
             client[b.db_name]["noii"],
             Mongoc.BSON(
-                "name" => ticker,
+                "ticker" => ticker,
                 "date" => string(date)
             )
         )
         Mongoc.delete_many(
             client[b.db_name]["books"],
             Mongoc.BSON(
-                "name" => ticker,
+                "ticker" => ticker,
                 "date" => string(date)
             )
         )

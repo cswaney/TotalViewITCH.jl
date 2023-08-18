@@ -20,13 +20,13 @@ mutable struct SystemMessage <: AbstractMessage
     sec::Int
     nano::Int
     type::Char
-    name::String
+    ticker::String
     event::Char
 end
 
 TimestampMessage(date, sec) = SystemMessage(date, sec, 0, 'T', "-", '-')
 SystemEventMessage(date, sec, nano, event) = SystemMessage(date, sec, nano, 'S', "-", event)
-TradeActionMessage(date, sec, nano, name, event) = SystemMessage(date, sec, nano, 'H', name, event)
+TradeActionMessage(date, sec, nano, ticker, event) = SystemMessage(date, sec, nano, 'H', ticker, event)
 
 function to_csv(message::SystemMessage)
     return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.event),,,,,,,\n"
@@ -43,7 +43,7 @@ mutable struct OrderMessage <: AbstractMessage
     nano::Int
     type::Char
     event::Char
-    name::String
+    ticker::String
     side::Char
     price::Int
     shares::Int
@@ -53,15 +53,15 @@ mutable struct OrderMessage <: AbstractMessage
 end
 
 function to_csv(message::OrderMessage)
-    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.event),$(message.name),$(message.side),$(message.price),$(message.shares),$(message.refno),$(message.newrefno),$(message.mpid)\n"
+    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.event),$(message.ticker),$(message.side),$(message.price),$(message.shares),$(message.refno),$(message.newrefno),$(message.mpid)\n"
 end
 
-function OrderMessage(date, sec, nano, type; event = '-', name = "-", side = '-', price = -1, shares = -1, refno = -1, newrefno = -1, mpid = "-")
-    return OrderMessage(date, sec, nano, type, event, name, side, price, shares, refno, newrefno, mpid)
+function OrderMessage(date, sec, nano, type; event = '-', ticker = "-", side = '-', price = -1, shares = -1, refno = -1, newrefno = -1, mpid = "-")
+    return OrderMessage(date, sec, nano, type, event, ticker, side, price, shares, refno, newrefno, mpid)
 end
 
-function AddMessage(date, sec, nano, refno, name, side, price, shares; type='A', mpid="-")
-    return OrderMessage(date, sec, nano, type, '-', name, side, price, shares, refno, -1, mpid)
+function AddMessage(date, sec, nano, refno, ticker, side, price, shares; type='A', mpid="-")
+    return OrderMessage(date, sec, nano, type, '-', ticker, side, price, shares, refno, -1, mpid)
 end
 
 function ExecuteMessage(date, sec, nano, refno, shares; type='E', price=-1)
@@ -80,8 +80,8 @@ function ReplaceMessage(date, sec, nano, refno, newrefno, shares, price)
     return OrderMessage(date, sec, nano, 'U', '-', "-", '-', price, shares, refno, newrefno, "-")
 end
 
-function CrossTradeMessage(date, sec, nano, shares, name, price, event)
-    return OrderMessage(date, sec, nano, 'Q', event, name, '-', price, shares, -1, -1, "-")
+function CrossTradeMessage(date, sec, nano, shares, ticker, price, event)
+    return OrderMessage(date, sec, nano, 'Q', event, ticker, '-', price, shares, -1, -1, "-")
 end
 
 
@@ -136,7 +136,7 @@ function complete_replace_message!(message::OrderMessage, orders::Dict)
     message.type != 'U' && throw(ArgumentError("not a replace message (type=$(message.type))"))
     ref_order = get(orders, message.refno, nothing)
     if !isnothing(ref_order)
-        message.name = ref_order.name
+        message.ticker = ref_order.ticker
         message.side = ref_order.side
         @debug "completed message: $(message)"
     else
@@ -150,7 +150,7 @@ function complete_replace_add_message!(message::OrderMessage, orders::Dict)
     ref_order = get(orders, message.refno, nothing)
     if !isnothing(ref_order)
         message.type = 'A'
-        message.name = ref_order.name
+        message.ticker = ref_order.ticker
         message.side = ref_order.side
         message.refno = message.newrefno
         message.newrefno = -1
@@ -165,7 +165,7 @@ function complete_execute_cancel_message!(message::OrderMessage, orders::Dict)
     !(message.type in ['E', 'X', 'C']) && throw(ArgumentError("not an execute or cancel message (type=$(message.type))"))
     ref_order = get(orders, message.refno, nothing)
     if !isnothing(ref_order)
-        message.name = ref_order.name
+        message.ticker = ref_order.ticker
         message.side = ref_order.side
         message.price = ref_order.price
         @debug "completed message: $(message)"
@@ -179,7 +179,7 @@ function complete_delete_message!(message::OrderMessage, orders::Dict)
     message.type != 'D' && throw(ArgumentError("not a delete message (type=$(message.type))"))
     ref_order = get(orders, message.refno, nothing)
     if !isnothing(ref_order)
-        message.name = ref_order.name
+        message.ticker = ref_order.ticker
         message.side = ref_order.side
         message.price = ref_order.price
         message.shares = ref_order.shares
@@ -201,7 +201,7 @@ mutable struct NOIIMessage <: AbstractMessage
     sec::Int
     nano::Int
     type::Char
-    name::String
+    ticker::String
     paired::Int
     imbalance::Int
     direction::Char
@@ -211,12 +211,12 @@ mutable struct NOIIMessage <: AbstractMessage
     cross::Char
 end
 
-function NOIIMessage(date, sec, nano; type = '-', name = "-", paired = -1, imbalance = -1, direction = '-', far = -1, near = -1, current = -1, cross = '-')
-    return NOIIMessage(date, sec, nano, type, name, paired, imbalance, direction, far, near, current, cross)
+function NOIIMessage(date, sec, nano; type = '-', ticker = "-", paired = -1, imbalance = -1, direction = '-', far = -1, near = -1, current = -1, cross = '-')
+    return NOIIMessage(date, sec, nano, type, ticker, paired, imbalance, direction, far, near, current, cross)
 end
 
 function to_csv(message::NOIIMessage)
-    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.name),$(message.paired),$(message.imbalance),$(message.direction),$(message.far),$(message.near),$(message.current),$(message.cross)\n"
+    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.ticker),$(message.paired),$(message.imbalance),$(message.direction),$(message.far),$(message.near),$(message.current),$(message.cross)\n"
 end
 
 """
@@ -229,16 +229,16 @@ mutable struct TradeMessage <: AbstractMessage
     sec::Int
     nano::Int
     type::Char
-    name::String
+    ticker::String
     side::Char
     price::Int
     shares::Int
 end
 
-function TradeMessage(date, sec, nano; type = '-', name = "-", side = '-', price = -1, shares = -1)
-    return TradeMessage(date, sec, nano, type, name, side, price, shares)
+function TradeMessage(date, sec, nano; type = '-', ticker = "-", side = '-', price = -1, shares = -1)
+    return TradeMessage(date, sec, nano, type, ticker, side, price, shares)
 end
 
 function to_csv(message::TradeMessage)
-    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.name),$(message.side),$(message.price),$(message.shares)\n"
+    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.ticker),$(message.side),$(message.price),$(message.shares)\n"
 end

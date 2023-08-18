@@ -1,6 +1,5 @@
 """
     Parser
-
 ...
 
 ### Details
@@ -18,7 +17,12 @@ end
 
 Parser{T}(url::String) where {T<:Backend} = Parser(T(url))
 
-function (parser::Parser{T})(file, date, tickers, version; nlevels=5, buffer_size=10_000) where {T<:Backend}
+function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, version::AbstractFloat; nlevels::Int=5, buffer_size::Int=10_000) where {T<:Backend}
+
+    version = ITCHVersion{version}()
+
+    success = check_exists(parser.backend)
+    !success && ErrorException("Unable to connect to backend.")
 
     duplicate_tickers = filter(t -> check_exists(date, t, parser.backend), tickers)
     if length(duplicate_tickers) > 0
@@ -66,23 +70,21 @@ function (parser::Parser{T})(file, date, tickers, version; nlevels=5, buffer_siz
         if message.type == 'T'
             clock = message.sec
             if clock % REPORT_FREQ == 0
-                @info "TIME=$(clock)"
-                elapsed_time = time() - start
-                @info "(messages_read=$(message_reads), elapsed_time=$(elapsed_time), rate=$(message_reads / elapsed_time) (msg/sec)"
+                @debug "TIME=$(clock)"
             end
             continue
         end
 
         # update system
         if message.type == 'S'
-            @info "SYSTEM MESSAGE: $(message.event)"
+            @debug "SYSTEM MESSAGE: $(message.event)"
             if message.event == 'C'  # end of messages
                 reading = false
             end
             continue
         elseif message.type == 'H'
-            if message.name in tickers
-                @info "TRADE MESSAGE ($(message.name): $(message.event))"
+            if message.ticker in tickers
+                @debug "TRADE MESSAGE ($(message.ticker): $(message.event))"
                 if message.event == 'H'  # halted (all US)
                 # TODO
                 elseif message.event == 'P'  # paused (all US)
@@ -99,62 +101,67 @@ function (parser::Parser{T})(file, date, tickers, version; nlevels=5, buffer_siz
         # complete message
         if message.type == 'U'
             complete_replace_message!(message, orders)
-            if message.name in tickers
-                @info "message: $(message)"
-                write(messages_buffer, message)
-                message_writes += 1
+            if message.ticker in tickers
+                @debug "ORDER MESSAGE: $(message)"
                 del_message, add_message = split_message(message)
                 complete_delete_message!(del_message, orders)
                 complete_replace_add_message!(add_message, orders)
+                write(messages_buffer, message)
+                message_writes += 1
                 update!(orders, del_message)
-                update!(books[message.name], del_message)
+                update!(books[message.ticker], del_message)
                 add!(orders, add_message)
-                update!(books[message.name], add_message)
-                write(orderbooks_buffer, books[message.name]) # only save combined book update
+                update!(books[message.ticker], add_message)
+                write(orderbooks_buffer, books[message.ticker]) # only save combined book update
             end
         elseif message.type in ['E', 'C', 'X']
             complete_execute_cancel_message!(message, orders)
-            if message.name in tickers
-                @info "message: $(message)"
+            if message.ticker in tickers
+                @debug "ORDER MESSAGE: $(message)"
                 write(messages_buffer, message)
                 message_writes += 1
                 update!(orders, message)
-                update!(books[message.name], message)
-                write(orderbooks_buffer, books[message.name])
+                update!(books[message.ticker], message)
+                write(orderbooks_buffer, books[message.ticker])
             end
         elseif message.type == 'D'
             complete_delete_message!(message, orders)
-            if message.name in tickers
-                @info "message: $(message)"
+            if message.ticker in tickers
+                @debug "ORDER MESSAGE: $(message)"
                 write(messages_buffer, message)
                 message_writes += 1
                 update!(orders, message)
-                update!(books[message.name], message)
-                write(orderbooks_buffer, books[message.name])
+                update!(books[message.ticker], message)
+                write(orderbooks_buffer, books[message.ticker])
             end
         elseif message.type in ['A', 'F']
-            if message.name in tickers
-                @info "message: $(message)"
+            if message.ticker in tickers
+                @debug "ORDER MESSAGE: $(message)"
                 write(messages_buffer, message)
                 message_writes += 1
                 add!(orders, message)
-                update!(books[message.name], message)
-                write(orderbooks_buffer, books[message.name])
+                update!(books[message.ticker], message)
+                write(orderbooks_buffer, books[message.ticker])
             end
         elseif message.type == 'P'
             # TODO
-            # @info "trade message: $(message)"
-            # if message.name in tickers
-            #     push!(trades[message.name], to_csv(message))
+            @info "TRADE MESSAGE: $(message)"
+            # if message.ticker in tickers
+            #     push!(trades[message.ticker], to_csv(message))
             #     trade_writes += 1
             # end
         elseif message.type in ['Q', 'I']
             # TODO
-            # @info "imbalance message: $(message)"
-            # if message.name in tickers
-            #     push!(imbalances[message.name], to_csv(message))
+            @info "NOII MESSAGE: $(message)"
+            # if message.ticker in tickers
+            #     push!(imbalances[message.ticker], to_csv(message))
             #     noii_writes += 1
             # end
+        end
+
+        if message_reads % 10_000_000 == 0
+            elapsed_time = time() - start
+            @info "Progress: $(io.ptr / length(io.data) * 100)% (elapsed: $(elapsed_time), messages: $message_reads, speed: $(message_reads / elapsed_time) msg/sec)"
         end
 
     end
@@ -174,4 +181,311 @@ function (parser::Parser{T})(file, date, tickers, version; nlevels=5, buffer_siz
     @info "Messages written: $(message_writes)"
     @info "NOII written: $(noii_writes)"
     @info "Trades written: $(trade_writes)"
+end
+
+
+using BitIntegers
+@define_integers 48
+
+BUFFER_SIZE = 10 ^ 4
+REPORT_FREQ = 1800
+
+read_string(io::IO, n) = rstrip(String(read(io, n)), ' ')
+read_uint48(io) = Int(ntoh(read(io, UInt48)))
+
+struct ITCHVersion{N} end
+
+function get_trade_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    _ = Int(ntoh(read(io, UInt64))) # refno
+    side = Char(read(io, Char))
+    shares = Int(ntoh(read(io, UInt32)))
+    ticker = rstrip(String(read(io, 8)), ' ')
+    price = Int(ntoh(read(io, UInt32)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
+    return TradeMessage(date, sec, nano, 'P', ticker, side, price, shares)
+end
+
+function get_trade_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2) # stock locate == 0
+    read(io, 2) # tracking number
+    nano = read_uint48(io)
+    _ = Int(ntoh(read(io, UInt64))) # refno
+    side = Char(read(io, Char))
+    shares = Int(ntoh(read(io, UInt32)))
+    ticker = rstrip(String(read(io, 8)), ' ')
+    price = Int(ntoh(read(io, UInt32)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
+    return TradeMessage(date, sec, nano, 'P', ticker, side, price, shares)
+end
+
+function get_noii_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    paired = Int(ntoh(read(io, UInt64)))
+    imbalance = Int(ntoh(read(io, UInt64)))
+    direction = Char(read(io, Char))
+    ticker = rstrip(String(read(io, 8)), ' ')
+    far = Int(ntoh(read(io, UInt32)))
+    near = Int(ntoh(read(io, UInt32)))
+    current = Int(ntoh(read(io, UInt32)))
+    cross = Char(read(io, Char))
+    _ = Char(read(io, Char)) # indicator
+    return NOIIMessage(date, sec, nano, 'I', ticker, paired, imbalance, direction, far, near, current, cross)
+end
+
+function get_noii_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2) # stock locate == 0
+    read(io, 2) # tracking number
+    nano = read_uint48(io)
+    paired = Int(ntoh(read(io, UInt64)))
+    imbalance = Int(ntoh(read(io, UInt64)))
+    direction = Char(read(io, Char))
+    ticker = rstrip(String(read(io, 8)), ' ')
+    far = Int(ntoh(read(io, UInt32)))
+    near = Int(ntoh(read(io, UInt32)))
+    current = Int(ntoh(read(io, UInt32)))
+    cross = Char(read(io, Char))
+    _ = Char(read(io, Char)) # indicator
+    return NOIIMessage(date, sec, nano, 'I', ticker, paired, imbalance, direction, far, near, current, cross)
+end
+
+function get_timestamp_message(io, date, version::ITCHVersion{4.1})
+    sec = Int(ntoh(read(io, UInt32)))
+    return TimestampMessage(date, sec)
+end
+
+function get_system_event_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    event = Char(read(io, Char))
+    return SystemEventMessage(date, sec, nano, event)
+end
+
+function get_system_event_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2) # stock locate == 0
+    read(io, 2) # tracking number
+    nano = read_uint48(io)
+    event = Char(read(io, Char))
+    return SystemEventMessage(date, sec, nano, event)
+end
+
+function get_trade_action_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    ticker = read_string(io, 8)
+    event = Char(read(io, Char))
+    read(io, Char)
+    read_string(io, 4)
+    return TradeActionMessage(date, sec, nano, ticker, event)
+end
+
+function get_trade_action_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2)
+    read(io, 2)
+    nano = read_uint48(io)
+    ticker = read_string(io, 8)
+    event = Char(read(io, Char))
+    read(io, Char)
+    read_string(io, 4)
+    return TradeActionMessage(date, sec, nano, ticker, event)
+end
+
+function get_add_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    side = Char(read(io, Char))
+    shares = Int(ntoh(read(io, UInt32)))
+    ticker = read_string(io, 8)
+    price = Int(ntoh(read(io, UInt32)))
+    return AddMessage(date, sec, nano, refno, ticker, side, price, shares)
+end
+
+function get_add_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2)
+    read(io, 2)
+    nano = read_uint48(io)
+    refno = Int(ntoh(read(io, UInt64)))
+    side = Char(read(io, Char))
+    shares = Int(ntoh(read(io, UInt32)))
+    ticker = read_string(io, 8)
+    price = Int(ntoh(read(io, UInt32)))
+    return AddMessage(date, sec, nano, refno, ticker, side, price, shares)
+end
+
+function get_add_mpid_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    side = Char(read(io, Char))
+    shares = Int(ntoh(read(io, UInt32)))
+    ticker = read_string(io, 8)
+    price = Int(ntoh(read(io, UInt32)))
+    mpid = read_string(io, 4)
+    return AddMessage(date, sec, nano, refno, ticker, side, price, shares; type='F', mpid=mpid)
+end
+
+function get_add_mpid_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2)
+    read(io, 2)
+    nano = read_uint48(io)
+    refno = Int(ntoh(read(io, UInt64)))
+    side = Char(read(io, Char))
+    shares = Int(ntoh(read(io, UInt32)))
+    ticker = read_string(io, 8)
+    price = Int(ntoh(read(io, UInt32)))
+    mpid = read_string(io, 4)
+    return AddMessage(date, sec, nano, refno, ticker, side, price, shares; type='F', mpid=mpid)
+end
+
+function get_execute_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
+    return ExecuteMessage(date, sec, nano, refno, shares)
+end
+
+function get_execute_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2)
+    read(io, 2)
+    nano = read_uint48(io)
+    refno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
+    return ExecuteMessage(date, sec, nano, refno, shares)
+end
+
+function get_execute_price_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
+    _ = Char(read(io, Char)) # printable
+    price = Int(ntoh(read(io, UInt32)))
+    return ExecuteMessage(date, sec, nano, refno, shares, type='C', price=price)
+end
+
+function get_execute_price_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2)
+    read(io, 2)
+    nano = read_uint48(io)
+    refno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
+    _ = Char(read(io, Char)) # printable
+    price = Int(ntoh(read(io, UInt32)))
+    return ExecuteMessage(date, sec, nano, refno, shares, type='C', price=price)
+end
+
+function get_cancel_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    return CancelMessage(date, sec, nano, refno, shares)
+end
+
+function get_cancel_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2)
+    read(io, 2)
+    nano = read_uint48(io)
+    refno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    return CancelMessage(date, sec, nano, refno, shares)
+end
+
+function get_delete_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    return DeleteMessage(date, sec, nano, refno)
+end
+
+function get_delete_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2)
+    read(io, 2)
+    nano = read_uint48(io)
+    refno = Int(ntoh(read(io, UInt64)))
+    return DeleteMessage(date, sec, nano, refno)
+end
+
+function get_replace_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    refno = Int(ntoh(read(io, UInt64)))
+    newrefno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    price = Int(ntoh(read(io, UInt32)))
+    return ReplaceMessage(date, sec, nano, refno, newrefno, shares, price)
+end
+
+function get_replace_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2)
+    read(io, 2)
+    nano = read_uint48(io)
+    refno = Int(ntoh(read(io, UInt64)))
+    newrefno = Int(ntoh(read(io, UInt64)))
+    shares = Int(ntoh(read(io, UInt32)))
+    price = Int(ntoh(read(io, UInt32)))
+    return ReplaceMessage(date, sec, nano, refno, newrefno, shares, price)
+end
+
+function get_cross_trade_message(io, date, sec, version::ITCHVersion{4.1})
+    nano = Int(ntoh(read(io, UInt32)))
+    shares = Int(ntoh(read(io, UInt64)))
+    ticker = read_string(io, 8)
+    price = Int(ntoh(read(io, UInt32)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
+    event = Char(read(io, Char))
+    return CrossTradeMessage(date, sec, nano, shares, ticker, price, event)
+end
+
+function get_cross_trade_message(io, date, sec, version::ITCHVersion{5.0})
+    read(io, 2)
+    read(io, 2)
+    nano = read_uint48(io)
+    shares = Int(ntoh(read(io, UInt64)))
+    ticker = read_string(io, 8)
+    price = Int(ntoh(read(io, UInt32)))
+    _ = Int(ntoh(read(io, UInt64))) # matchno
+    event = Char(read(io, Char))
+    return CrossTradeMessage(date, sec, nano, shares, ticker, price, event)
+end
+
+get_message_size(io) = Int(ntoh(read(io, UInt16)))
+get_message_type(io) = Char(read(io, Char))
+
+function get_message_body(io, size, type, date, sec, version::ITCHVersion)
+    if type == 'T'
+        return get_timestamp_message(io, date, version)
+    elseif type == 'S'
+        return get_system_event_message(io, date, sec, version)
+    elseif type == 'H'
+        return get_trade_action_message(io, date, sec, version)
+    elseif type == 'A'
+        return get_add_message(io, date, sec, version)
+    elseif type == 'F'
+        return get_add_mpid_message(io, date, sec, version)
+    elseif type == 'E'
+        return get_execute_message(io, date, sec, version)
+    elseif type == 'C'
+        return get_execute_price_message(io, date, sec, version)
+    elseif type == 'X'
+        return get_cancel_message(io, date, sec, version)
+    elseif type == 'D'
+        return get_delete_message(io, date, sec, version)
+    elseif type == 'U'
+        return get_replace_message(io, date, sec, version)
+    elseif type == 'Q'
+        return get_cross_trade_message(io, date, sec, version)
+    elseif type == 'P'
+        return get_trade_message(io, date, sec, version)
+    elseif type == 'I'
+        return get_noii_message(io, date, sec, version)
+    else
+        read(io, size - 1)
+        @debug "WARNING: unable to get message body (unsupported message type $(type))."
+        return nothing
+    end
+end
+
+function get_message(io, date, clock, version::ITCHVersion)
+    message_size = get_message_size(io)
+    message_type = get_message_type(io)
+    message = get_message_body(io, message_size, message_type, date, clock, version)
+    return message
 end

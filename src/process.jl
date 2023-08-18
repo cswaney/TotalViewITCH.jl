@@ -10,10 +10,10 @@ function get_trade_message(io, date, sec)
     _ = Int(ntoh(read(io, UInt64))) # refno
     side = Char(read(io, Char))
     shares = Int(ntoh(read(io, UInt32)))
-    name = rstrip(String(read(io, 8)), ' ')
+    ticker = rstrip(String(read(io, 8)), ' ')
     price = Int(ntoh(read(io, UInt32)))
     _ = Int(ntoh(read(io, UInt64))) # matchno
-    return TradeMessage(date, sec, nano, 'P', name, side, price, shares)
+    return TradeMessage(date, sec, nano, 'P', ticker, side, price, shares)
 end
 
 function get_noii_message(io, date, sec)
@@ -21,13 +21,13 @@ function get_noii_message(io, date, sec)
     paired = Int(ntoh(read(io, UInt64)))
     imbalance = Int(ntoh(read(io, UInt64)))
     direction = Char(read(io, Char))
-    name = rstrip(String(read(io, 8)), ' ')
+    ticker = rstrip(String(read(io, 8)), ' ')
     far = Int(ntoh(read(io, UInt32)))
     near = Int(ntoh(read(io, UInt32)))
     current = Int(ntoh(read(io, UInt32)))
     cross = Char(read(io, Char))
     _ = Char(read(io, Char)) # indicator
-    return NOIIMessage(date, sec, nano, 'I', name, paired, imbalance, direction, far, near, current, cross)
+    return NOIIMessage(date, sec, nano, 'I', ticker, paired, imbalance, direction, far, near, current, cross)
 end
 
 function get_timestamp_message(io, date)
@@ -43,11 +43,11 @@ end
 
 function get_trade_action_message(io, date, sec)
     nano = Int(ntoh(read(io, UInt32)))
-    name = read_string(io, 8)
+    ticker = read_string(io, 8)
     event = Char(read(io, Char))
     read(io, Char)
     read_string(io, 4)
-    return TradeActionMessage(date, sec, nano, name, event)
+    return TradeActionMessage(date, sec, nano, ticker, event)
 end
 
 function get_add_message(io, date, sec)
@@ -55,9 +55,9 @@ function get_add_message(io, date, sec)
     refno = Int(ntoh(read(io, UInt64)))
     side = Char(read(io, Char))
     shares = Int(ntoh(read(io, UInt32)))
-    name = read_string(io, 8)
+    ticker = read_string(io, 8)
     price = Int(ntoh(read(io, UInt32)))
-    return AddMessage(date, sec, nano, refno, name, side, price, shares)
+    return AddMessage(date, sec, nano, refno, ticker, side, price, shares)
 end
 
 function get_add_mpid_message(io, date, sec)
@@ -65,10 +65,10 @@ function get_add_mpid_message(io, date, sec)
     refno = Int(ntoh(read(io, UInt64)))
     side = Char(read(io, Char))
     shares = Int(ntoh(read(io, UInt32)))
-    name = read_string(io, 8)
+    ticker = read_string(io, 8)
     price = Int(ntoh(read(io, UInt32)))
     mpid = read_string(io, 4)
-    return AddMessage(date, sec, nano, refno, name, side, price, shares; type='F', mpid=mpid)
+    return AddMessage(date, sec, nano, refno, ticker, side, price, shares; type='F', mpid=mpid)
 end
 
 function get_execute_message(io, date, sec)
@@ -114,11 +114,11 @@ end
 function get_cross_trade_message(io, date, sec)
     nano = Int(ntoh(read(io, UInt32)))
     shares = Int(ntoh(read(io, UInt64)))
-    name = read_string(io, 8)
+    ticker = read_string(io, 8)
     price = Int(ntoh(read(io, UInt32)))
     _ = Int(ntoh(read(io, UInt64))) # matchno
     event = Char(read(io, Char))
-    return CrossTradeMessage(date, sec, nano, shares, name, price, event)
+    return CrossTradeMessage(date, sec, nano, shares, ticker, price, event)
 end
 
 get_message_size(io) = Int(ntoh(read(io, UInt16)))
@@ -230,8 +230,8 @@ function process(file, version, date, nlevels, tickers, dir)
             end
             continue
         elseif message.type == 'H'
-            if message.name in tickers
-                @info "TRADE MESSAGE ($(message.name): $(message.event))"
+            if message.ticker in tickers
+                @info "TRADE MESSAGE ($(message.ticker): $(message.event))"
                 if message.event == 'H'  # halted (all US)
                     # TODO
                 elseif message.event == 'P'  # paused (all US)
@@ -248,28 +248,28 @@ function process(file, version, date, nlevels, tickers, dir)
         # complete message
         if message.type == 'U'
             complete_replace_message!(message, orders)
-            if message.name in tickers
+            if message.ticker in tickers
                 @info "message: $(message)"
                 del_message, add_message = split_message(message)
                 complete_delete_message!(del_message, orders)
                 complete_replace_add_message!(add_message, orders)
-                push!(messages[message.name], to_csv(message))
+                push!(messages[message.ticker], to_csv(message))
                 message_writes += 1
                 update!(orders, del_message)
-                update!(books[message.name], del_message)
+                update!(books[message.ticker], del_message)
                 add!(orders, add_message)
-                update!(books[message.name], add_message)
-                push!(snapshots[message.name], to_csv(books[message.name])) # only save combined book update
+                update!(books[message.ticker], add_message)
+                push!(snapshots[message.ticker], to_csv(books[message.ticker])) # only save combined book update
             end
         elseif message.type in ['E', 'C', 'X']
             complete_execute_cancel_message!(message, orders)
-            if message.name in tickers
+            if message.ticker in tickers
                 @info "message: $(message)"
-                push!(messages[message.name], to_csv(message))
+                push!(messages[message.ticker], to_csv(message))
                 message_writes += 1
                 update!(orders, message)
-                update!(books[message.name], message)
-                push!(snapshots[message.name], to_csv(books[message.name]))
+                update!(books[message.ticker], message)
+                push!(snapshots[message.ticker], to_csv(books[message.ticker]))
             end
         elseif message.type == 'D'
             complete_delete_message!(message, orders)

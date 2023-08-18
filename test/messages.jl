@@ -32,7 +32,7 @@ end
 #     add_message = Message(
 #         date,
 #         type = "A",
-#         name = "AAPL",
+#         ticker = "AAPL",
 #         side = "B",
 #         price = 125,
 #         shares = 500,
@@ -50,7 +50,7 @@ end
 #     @test delete_message == Message(
 #         date,
 #         type = "D",
-#         name = "AAPL",
+#         ticker = "AAPL",
 #         side = "B",
 #         price = 125,
 #         shares = 500,
@@ -72,7 +72,7 @@ end
 #     @test delete_message == Message(
 #         date,
 #         type = "D",
-#         name = "AAPL",
+#         ticker = "AAPL",
 #         side = "B",
 #         price = 125,
 #         shares = 500,
@@ -81,7 +81,7 @@ end
 #     @test add_message == Message(
 #         date,
 #         type = "A",
-#         name = "AAPL",
+#         ticker = "AAPL",
 #         side = "B",
 #         price = 115,
 #         shares = 200,
@@ -99,7 +99,7 @@ end
 #     @test execute_message == Message(
 #         date,
 #         type = "E",
-#         name = "AAPL",
+#         ticker = "AAPL",
 #         side = "B",
 #         price = 125,
 #         shares = 100,
@@ -117,7 +117,7 @@ end
 #     @test cancel_message == Message(
 #         date,
 #         type = "C",
-#         name = "AAPL",
+#         ticker = "AAPL",
 #         side = "B",
 #         price = 125,
 #         shares = 100,

@@ -60,53 +60,53 @@ end
     book = Book("AAPL", nlevels)
 
     # non-matching message
-    non_matching_message = OrderMessage(date, 0, 0, 'A'; name="AA", side='B', price=125, shares=500)
+    non_matching_message = OrderMessage(date, 0, 0, 'A'; ticker="AA", side='B', price=125, shares=500)
     @test_throws ArgumentError TotalViewITCH.update!(book, non_matching_message)
 
     # add message (bid)
-    add_message = OrderMessage(date, 0, 0, 'A'; name="AAPL", side='B', price=125, shares=500)
+    add_message = OrderMessage(date, 0, 0, 'A'; ticker="AAPL", side='B', price=125, shares=500)
     TotalViewITCH.update!(book, add_message)
     @test get(book.bids, 125, nothing) == 500
 
     # execute (bid, missing)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='B', price=120, shares=100)
+    execute_message = OrderMessage(date, 0, 0, 'E'; ticker="AAPL", side='B', price=120, shares=100)
     @test_throws ErrorException TotalViewITCH.update!(book, execute_message)
 
     # execute message (bid, under)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='B', price=125, shares=100)
+    execute_message = OrderMessage(date, 0, 0, 'E'; ticker="AAPL", side='B', price=125, shares=100)
     TotalViewITCH.update!(book, execute_message)
     @test get(book.bids, 125, nothing) == 400
 
     # execute message (bid, exhaust)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='B', price=125, shares=400)
+    execute_message = OrderMessage(date, 0, 0, 'E'; ticker="AAPL", side='B', price=125, shares=400)
     TotalViewITCH.update!(book, execute_message)
     @test isnothing(get(book.bids, 125, nothing))
 
     # execute message (bid, over)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='B', price=125, shares=100)
+    execute_message = OrderMessage(date, 0, 0, 'E'; ticker="AAPL", side='B', price=125, shares=100)
     @test_throws ErrorException TotalViewITCH.update!(book, execute_message)
 
     # add message (ask)
-    add_message = OrderMessage(date, 0, 0, 'A'; name="AAPL", side='S', price=130, shares=500)
+    add_message = OrderMessage(date, 0, 0, 'A'; ticker="AAPL", side='S', price=130, shares=500)
     TotalViewITCH.update!(book, add_message)
     @test get(book.asks, 130, nothing) == 500
 
     # execute (ask, missing)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='S', price=135, shares=100)
+    execute_message = OrderMessage(date, 0, 0, 'E'; ticker="AAPL", side='S', price=135, shares=100)
     @test_throws ErrorException TotalViewITCH.update!(book, execute_message)
 
     # execute message (ask, under)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='S', price=130, shares=100)
+    execute_message = OrderMessage(date, 0, 0, 'E'; ticker="AAPL", side='S', price=130, shares=100)
     TotalViewITCH.update!(book, execute_message)
     @test get(book.asks, 130, nothing) == 400
 
     # execute message (ask, exhaust)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='S', price=130, shares=400)
+    execute_message = OrderMessage(date, 0, 0, 'E'; ticker="AAPL", side='S', price=130, shares=400)
     TotalViewITCH.update!(book, execute_message)
     @test isnothing(get(book.asks, 130, nothing))
 
     # execute message (ask, over)
-    execute_message = OrderMessage(date, 0, 0, 'E'; name="AAPL", side='S', price=130, shares=100)
+    execute_message = OrderMessage(date, 0, 0, 'E'; ticker="AAPL", side='S', price=130, shares=100)
     @test_throws ErrorException TotalViewITCH.update!(book, execute_message)
 
 end
