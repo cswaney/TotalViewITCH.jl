@@ -5,7 +5,7 @@ An abstraction to handle writing parsed data to disk.
 
 Parsed data is written to the buffer and the buffer flushes itself to its backend.
 """
-struct Buffer{T<:Backend,S<:Writable}
+mutable struct Buffer{T<:Backend,S<:Writable}
     data::Dict{String,Vector{S}}
     backend::T
     collection::String
@@ -22,13 +22,15 @@ function Buffer{T, S}(tickers, backend::T, collection, date, maxsize) where {T<:
 end
 
 function Base.write(b::Buffer, item)
-    b.data[item.ticker][b.ptr] = item
+    b.data[item.ticker][b.ptrs[item.ticker]] = item
     b.ptrs[item.ticker] += 1
     b.ptrs[item.ticker] == b.maxsize + 1 && flush(b, item.ticker)
 end
 
 function flush(b::Buffer, ticker)
-    b.cnt += insert(b.backend, b.data[ticker][1:(b.ptr - 1)], b.collection, ticker, b.date)
+    ptr = b.ptrs[ticker]
+    n = insert(b.backend, b.data[ticker][1:ptr-1], b.collection, ticker, b.date)
+    b.cnt += n
     reset(b, ticker)
 end
 

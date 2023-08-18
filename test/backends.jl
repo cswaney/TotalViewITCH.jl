@@ -19,10 +19,10 @@ using Test
     @test !check_exists(backend)
 
     build(backend; force=true)
-    @test insert([
+    @test insert(backend, [
         AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100),
         AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100)
-    ], date, "A", "messages", backend) == 2
+    ], "messages", "A", date) == 2
     @test clean(date, "A", backend)
 
 end

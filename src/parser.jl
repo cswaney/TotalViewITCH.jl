@@ -21,37 +21,58 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
 
     version = ITCHVersion{version}()
 
-    success = check_exists(parser.backend)
-    !success && ErrorException("Unable to connect to backend.")
+    @info "Checking database connection..."
+    if !(ping(parser.backend)["status"] == "ok")
+        @error "Unable to connect to database. Exiting."
 
+        return
+    end
+
+    if !check_exists(parser.backend)
+        resp = input("No database found. Would you like to create one? (Y/n)")
+        if lowercase(resp) == 'y'
+            build(parser.backend; force=true)
+        else
+            @info "Process cancelled. Exiting."
+
+            return
+        end
+    end
+
+    @info "Checking for duplicate tickers..."
     duplicate_tickers = filter(t -> check_exists(date, t, parser.backend), tickers)
     if length(duplicate_tickers) > 0
-        resp = input("Found order messages for the following tickers: $duplicate_tickers\n. Do you want to replace data for these tickers? (Y/n)")
+        @info "Found order messages for the following tickers: $duplicate_tickers"
+        resp = input("Replace data for these tickers? (Y/n)")
         if lowercase(resp) == "y"
             for ticker in duplicate_tickers
-                @info "Cleaning up ticker: $ticker"
                 clean(date, ticker, parser.backend)
+                @info "Cleaned up ticker: $ticker."
             end
         else
             tickers = setdiff(tickers, duplicates_tickers)
             if length(tickers) == 0 
-                println("No new tickers found. Exiting.")
+                @warn "No new tickers found. Exiting."
+
+                return
             else
-                println("Processing data for new tickers: $tickers")
             end
         end
     end
+    @info "New tickers to process: $tickers."
  
+    @info "Setting up parser..."
     orders = Dict{Int,Order}()
     books = Dict([t => Book(t, nlevels) for t in tickers])
     messages_buffer = Buffer{T,OrderMessage}(tickers, parser.backend, "messages", date, buffer_size)
     trades_buffer = Buffer{T,TradeMessage}(tickers, parser.backend, "trades", date, buffer_size)
     noii_buffer = Buffer{T,NOIIMessage}(tickers, parser.backend, "noii", date, buffer_size)
     orderbooks_buffer = Buffer{T,Book}(tickers, parser.backend, "orderbooks", date, buffer_size)
+    @info "Parser setup complete."
 
     @info "Reading bytes..."
     t = @elapsed io = IOBuffer(read(open(file, "r"))) # read entire file -> Vector{UInt8}
-    @info "done (elapsed: $(t))"
+    @info "Finished reading bytes (elapsed: $(round(t, digits=2)), bytes: $(io.size))."
     message_reads = 0
     message_writes = 0
     noii_writes = 0
@@ -59,6 +80,8 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
     reading = true
     clock = 0
     start = time()
+
+    @info "Parsing raw data..."
     while reading
 
         # read message
@@ -70,21 +93,21 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
         if message.type == 'T'
             clock = message.sec
             if clock % REPORT_FREQ == 0
-                @debug "TIME=$(clock)"
+                @debug "$message"
             end
             continue
         end
 
         # update system
         if message.type == 'S'
-            @debug "SYSTEM MESSAGE: $(message.event)"
+            @debug "$message"
             if message.event == 'C'  # end of messages
                 reading = false
             end
             continue
         elseif message.type == 'H'
             if message.ticker in tickers
-                @debug "TRADE MESSAGE ($(message.ticker): $(message.event))"
+                @debug "$message"
                 if message.event == 'H'  # halted (all US)
                 # TODO
                 elseif message.event == 'P'  # paused (all US)
@@ -102,7 +125,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
         if message.type == 'U'
             complete_replace_message!(message, orders)
             if message.ticker in tickers
-                @debug "ORDER MESSAGE: $(message)"
+                @debug "$message"
                 del_message, add_message = split_message(message)
                 complete_delete_message!(del_message, orders)
                 complete_replace_add_message!(add_message, orders)
@@ -117,7 +140,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
         elseif message.type in ['E', 'C', 'X']
             complete_execute_cancel_message!(message, orders)
             if message.ticker in tickers
-                @debug "ORDER MESSAGE: $(message)"
+                @debug "$message"
                 write(messages_buffer, message)
                 message_writes += 1
                 update!(orders, message)
@@ -127,7 +150,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
         elseif message.type == 'D'
             complete_delete_message!(message, orders)
             if message.ticker in tickers
-                @debug "ORDER MESSAGE: $(message)"
+                @debug "$message"
                 write(messages_buffer, message)
                 message_writes += 1
                 update!(orders, message)
@@ -136,7 +159,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
             end
         elseif message.type in ['A', 'F']
             if message.ticker in tickers
-                @debug "ORDER MESSAGE: $(message)"
+                @debug "$message"
                 write(messages_buffer, message)
                 message_writes += 1
                 add!(orders, message)
@@ -145,14 +168,14 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
             end
         elseif message.type == 'P'
             # TODO
-            @info "TRADE MESSAGE: $(message)"
+            @debug "$message"
             # if message.ticker in tickers
             #     push!(trades[message.ticker], to_csv(message))
             #     trade_writes += 1
             # end
         elseif message.type in ['Q', 'I']
             # TODO
-            @info "NOII MESSAGE: $(message)"
+            @debug "$message"
             # if message.ticker in tickers
             #     push!(imbalances[message.ticker], to_csv(message))
             #     noii_writes += 1
@@ -161,21 +184,24 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
 
         if message_reads % 10_000_000 == 0
             elapsed_time = time() - start
-            @info "Progress: $(io.ptr / length(io.data) * 100)% (elapsed: $(elapsed_time), messages: $message_reads, speed: $(message_reads / elapsed_time) msg/sec)"
+            @info "$(round(io.ptr / length(io.data) * 100, digits=0))% (elapsed: $(round(elapsed_time, digits=2)), messages: $message_reads, speed: $(round(message_reads / elapsed_time, digits=2)) msg/sec)"
         end
 
     end
+    elapsed_time = time() - start
+    @info "100% (elapsed: $(round(elapsed_time, digits=2)), messages: $message_reads, speed: $(round(message_reads / elapsed_time, digits=2)) msg/sec)"
 
     # clean up
     @info "Cleaning up..."
     flush(messages_buffer)
     flush(trades_buffer)
     flush(noii_buffer)
-    flush(orderbook_buffer)
+    flush(orderbooks_buffer)
+    @info "Done."
 
     stop = time()
     elapsed_time = stop - start
-    @info "\n** FINISHED **"
+    @info "Process complete!"
     @info "Elapsed time: $(elapsed_time)"
     @info "Messages read: $(message_reads)"
     @info "Messages written: $(message_writes)"

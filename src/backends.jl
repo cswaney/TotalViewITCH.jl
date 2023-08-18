@@ -32,7 +32,7 @@ function check_exists(b::FileSystem)
 end
 
 function check_exists(date::Date, ticker::String, b::FileSystem)
-    return isdir(joinpath(b.url, ticker, string(date)))
+    return isdir(joinpath(b.url, "messages", ticker, string(date)))
 end
 
 """
@@ -41,7 +41,7 @@ end
 Scaffold a database. The structure of the database is:
 
     url
-     |- books
+     |- orderbooks
          |- aapl
             |- 20170101
             |- ...
@@ -77,7 +77,7 @@ function build(b::FileSystem; force=false)
     end
 
     path = mkdir(b.url)
-    mkdir(joinpath(path, "books"))
+    mkdir(joinpath(path, "orderbooks"))
     mkdir(joinpath(path, "messages"))
     mkdir(joinpath(path, "trades"))
     mkdir(joinpath(path, "noii"))
@@ -86,7 +86,7 @@ function build(b::FileSystem; force=false)
     return true
 end
 
-function insert(items, date, ticker, collection, b::FileSystem)
+function insert(b::FileSystem, items, collection, ticker, date)
 
     if !isdir(joinpath(b.url, collection, ticker))
         mkdir(joinpath(b.url, collection, ticker))
@@ -100,6 +100,8 @@ function insert(items, date, ticker, collection, b::FileSystem)
         open(joinpath(b.url, collection, ticker, string(date), "partition.csv"), "a+") do io
             write(io, join(textify.(items), ""))
         end
+        n = length(items)
+        @info "Inserted $n items to collection: $(collection)"
 
         return length(items)
     catch e
@@ -151,11 +153,11 @@ function teardown(b::FileSystem; force=false)
         resp = input("Confirm teardown of database $(abspath(b.url))? (Y/n)")
         if lowercase(resp) == "y"
             rm(b.url, force=true, recursive=true)
-            @info "Database removed"
+            @info "Database dropped!"
 
             return true
         end
-        @info "Cancelled database teardown process"
+        @info "Cancelled database teardown process."
     end
 
     return false
@@ -211,7 +213,7 @@ function build(b::MongoDB; force=false)
         else
             resp = input("Overwrite existing database $(b.db_name)? (Y/n)")
             if lowercase(resp) != "y"
-                @info "Database build process cancelled"
+                @info "Database build process cancelled."
 
                 return false
             end
@@ -277,13 +279,15 @@ function build(b::MongoDB; force=false)
     end
 end
 
-function insert(items, date, ticker, collection, b::MongoDB)
+function insert(b::MongoDB, items, collection, ticker, date)
     client = Mongoc.Client(b.url)
     try
         doc = bsonify.(items)
         resp = Mongoc.insert_many(client[b.db_name][collection], doc)
+        n = resp.reply["nInserted"]
+        @info "Inserted $n items to collection: $(collection)"
 
-        return resp.reply["nInserted"]
+        return n
     catch e
         throw(e)
     end
