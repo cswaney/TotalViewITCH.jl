@@ -22,7 +22,7 @@ struct Parser{T<:Backend}
     orderbook_buffer
 end
 
-function Parser{T}(url) where {T<:Backend}
+function Parser{T}(url; maxsize = 10_000) where {T<:Backend}
     orders = Dict{Int,Order}()
     books = Dict([name => Book(name)])
     message_buffer = Buffer{T}(parser, maxsize)

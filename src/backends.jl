@@ -270,6 +270,7 @@ function build(b::MongoDB; force=false)
             "name_date"
         )
 
+        @info "Created database: $(b.db_name)"
         return true
     catch e
         throw(e)
