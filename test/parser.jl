@@ -4,12 +4,18 @@ using TotalViewITCH: get_message_size, get_message_type, get_message_body
 using Dates
 using Test
 
-date = Date("2023-01-01")
-clock = 0
-version = ITCHVersion{5.0}()
 
-@testset "Messages" begin
+@testset "v4.1" begin
     
+end
+
+
+@testset "v5.0" begin
+    
+    date = Date("2023-01-01")
+    clock = 0
+    version = ITCHVersion{5.0}()
+
     io = IOBuffer([0x00, 0x0c, 0x53, 0x00, 0x00, 0x00, 0x00, 0x09, 0xef, 0x1f, 0x92, 0xef, 0xdf, 0x4f])
     @test get_message_size(io) == 12
     @test get_message_type(io) == 'S'

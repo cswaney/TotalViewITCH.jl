@@ -20,6 +20,10 @@ using Dates
         include("backends.jl")
     end
 
+    @testset "parser" begin
+        include("parser.jl")
+    end
+
     # @static if VERSION == v"1.6"
     #     using Documenter
     #     @testset "Docs" begin
