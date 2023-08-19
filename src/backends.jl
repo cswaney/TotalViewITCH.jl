@@ -72,6 +72,8 @@ function build(b::FileSystem; force=false)
                 @info "Database build process cancelled"
 
                 return false
+            else
+                teardown(b; force=true)
             end
         end
     end
@@ -202,10 +204,6 @@ function check_exists(date::Date, ticker::String, b::MongoDB)
                 "ticker" => ticker,
                 "date" => date,
             ))
-            # Mongoc.BSON(
-            #     "ticker" => ticker,
-            #     "date" => Datetime(date),
-            # )
         )
 
         return !isnothing(res)
@@ -320,12 +318,12 @@ function find(date::Date, ticker, collection, b::MongoDB)
     )
 end
 
-function create_index(db, collection::Mongoc.Collection, key::Mongoc.BSON, options::AbstractArray{Pair{String,T}}, ticker::String) where {T<:Any}
+function create_index(db, collection::Mongoc.Collection, key::Mongoc.BSON, options::AbstractArray{Pair{String,T}}, name::String) where {T<:Any}
     cmd = Mongoc.BSON(
-        "createIndexes" => collection.ticker,
+        "createIndexes" => collection.name,
         "indexes" => [
             Mongoc.BSON(
-                "ticker" => "$(ticker)_index",
+                "name" => "$(name)_index",
                 "key" => key,
                 options...
             )

@@ -15,7 +15,14 @@ mutable struct Order
 end
 
 import Base.==
-(==)(a::Order, b::Order) = all([getfield(a, f) == getfield(b, f) for f in fieldtickers(Order)])
+function (==)(a::Order, b::Order)
+    a.ticker == b.ticker || return false 
+    a.side == b.side || return false 
+    a.price == b.price || return false 
+    a.shares == b.shares || return false
+    
+    return true
+end
 
 function add!(orders::Dict{Int,Order}, message::OrderMessage)
     """

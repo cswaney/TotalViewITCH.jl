@@ -12,12 +12,12 @@ using Dates
         include("orderbooks.jl")
     end
 
-    @testset "database" begin
-        # include("database.jl")
+    @testset "buffer" begin
+        include("buffer.jl")
     end
 
-    @testset "process" begin
-        # include("process.jl")
+    @testset "backends" begin
+        include("backends.jl")
     end
 
     # @static if VERSION == v"1.6"

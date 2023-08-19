@@ -5,12 +5,11 @@ using Mongoc
 using Dates
 using Test
 
-# NOTE: this test requires mongodb running at mongodb://localhost:27017
 
 @testset "Backend.FileSystem" begin
 
     date = Date("2017-02-27")
-    backend = TotalViewITCH.FileSystem("data/test")
+    backend = TotalViewITCH.FileSystem("../data/test")
 
     @test build(backend; force=true)
     @test ping(backend)["status"] == "ok"
@@ -27,6 +26,8 @@ using Test
 
 end
 
+
+# NOTE: this test requires mongodb running at mongodb://localhost:27017
 @testset "Backend.MongDB" begin
 
     date = Date("2017-02-27")
@@ -39,10 +40,10 @@ end
     @test !check_exists(backend)
 
     build(backend; force=true)
-    @test insert([
+    @test insert(backend, [
             AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100),
             AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100)
-        ], date, "A", "messages", backend) == 2
+        ],"messages", "A", date) == 2
     @test clean(date, "A", backend)
 
 end
