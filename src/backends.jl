@@ -96,17 +96,21 @@ function insert(b::FileSystem, items, collection, ticker, date)
         mkdir(joinpath(b.url, collection, ticker, string(date)))
     end
 
-    try
-        open(joinpath(b.url, collection, ticker, string(date), "partition.csv"), "a+") do io
-            write(io, join(textify.(items), ""))
-        end
-        n = length(items)
-        @info "Inserted $n items to collection: $(collection)"
+    if length(items) > 0
+        try
+            open(joinpath(b.url, collection, ticker, string(date), "partition.csv"), "a+") do io
+                write(io, join(textify.(items), ""))
+            end
+            n = length(items)
+            @info "Inserted $n items to collection: $(collection)"
 
-        return length(items)
-    catch e
-        throw(e)
+            return length(items)
+        catch e
+            throw(e)
+        end
     end
+
+    @info "Inserted 0 items to collection: $collection"
 
     return 0
 end
@@ -194,10 +198,14 @@ function check_exists(date::Date, ticker::String, b::MongoDB)
     try
         res = Mongoc.find_one(
             client[b.db_name]["messages"],
-            Mongoc.BSON(
+            bsonify(Dict(
                 "ticker" => ticker,
                 "date" => date,
-            )
+            ))
+            # Mongoc.BSON(
+            #     "ticker" => ticker,
+            #     "date" => Datetime(date),
+            # )
         )
 
         return !isnothing(res)
@@ -279,23 +287,28 @@ function build(b::MongoDB; force=false)
     end
 end
 
-function insert(b::MongoDB, items, collection, ticker, date)
+function insert(b::MongoDB, items, collection, ticker::String, date::Date)
     client = Mongoc.Client(b.url)
-    try
-        doc = bsonify.(items)
-        resp = Mongoc.insert_many(client[b.db_name][collection], doc)
-        n = resp.reply["nInserted"]
-        @info "Inserted $n items to collection: $(collection)"
 
-        return n
-    catch e
-        throw(e)
+    if length(items) > 0
+        try
+            doc = bsonify.(items)
+            resp = Mongoc.insert_many(client[b.db_name][collection], doc)
+            n = resp.reply["nInserted"]
+            @info "Inserted $n items to collection: $(collection)"
+
+            return n
+        catch e
+            throw(e)
+        end
     end
+
+    @info "Inserted 0 items to collection: $collection"
 
     return 0
 end
 
-bsonify(item::Writable) = Mongoc.BSON(JSON.json(item)) # using JSON b/c we want inserts to be JSON-compatible
+bsonify(item) = Mongoc.BSON(JSON.json(item)) # using JSON b/c we want inserts to be JSON-compatible
 
 function find(date::Date, ticker, collection, b::MongoDB)
     client = Mongoc.Client(b.url)
