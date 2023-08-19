@@ -9,7 +9,7 @@ using Test
 @testset "Backend.FileSystem" begin
 
     date = Date("2017-02-27")
-    backend = TotalViewITCH.FileSystem("../data/test")
+    backend = TotalViewITCH.FileSystem("./data")
 
     @test build(backend; force=true)
     @test ping(backend)["status"] == "ok"
@@ -23,6 +23,7 @@ using Test
         AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100)
     ], "messages", "A", date) == 2
     @test clean(date, "A", backend)
+    teardown(backend; force=true)
 
 end
 
@@ -45,5 +46,6 @@ end
 #             AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100)
 #         ],"messages", "A", date) == 2
 #     @test clean(date, "A", backend)
+#     teardown(backend; force=true)
 
 # end

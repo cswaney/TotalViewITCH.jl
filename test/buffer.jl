@@ -7,7 +7,7 @@ using Test
 @testset "Buffer.FileSystem" begin
     
     date = Date("2017-02-27")
-    backend = FileSystem("../data/test")
+    backend = FileSystem("./data")
     build(backend; force=true)
 
     buffer = Buffer{FileSystem,OrderMessage}(["A"], backend, "messages", date, 2)
@@ -29,6 +29,7 @@ using Test
     write(buffer, AddMessage(date, 0, 0, 123456789, "A", 'S', 128, 100))
     reset(buffer, "A")
     @test buffer.ptrs["A"] == 1 # buffer resets
+    teardown(backend; force=true)
 
 end
 
@@ -59,5 +60,6 @@ end
 #     write(buffer, AddMessage(date, 0, 0, 123456789, "A", 'S', 128, 100))
 #     reset(buffer, "A")
 #     @test buffer.ptrs["A"] == 1 # buffer resets
+#     teardown(backend; force=true)
 
 # end
