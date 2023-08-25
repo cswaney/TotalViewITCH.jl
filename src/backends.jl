@@ -1,5 +1,7 @@
 using Mongoc
 using JSON
+using CSV
+using DataFrames
 
 const Writable = Union{Book,OrderMessage,TradeMessage,NOIIMessage}
 
@@ -9,6 +11,7 @@ function ping(b::Backend) end
 function check_exists(date::Date, ticker::String, b::Backend)::Bool end
 function build(b::Backend)::Bool end
 function insert(b::Backend, items, collection, ticker, date)::Int end
+function find(b::Backend, collection, ticker, date) end
 function clean(date::Date, ticker::String, b::Backend)::Bool end
 function clean(date::Date, b::Backend)::Bool end
 function clean(ticker::String, b::Backend)::Bool end
@@ -115,6 +118,59 @@ function insert(b::FileSystem, items, collection, ticker, date)
     @info "Inserted 0 items to collection: $collection"
 
     return 0
+end
+
+const headers = Dict(
+    "messages" => [
+        "date",
+        "sec",
+        "nano",
+        "type",
+        "event",
+        "ticker",
+        "side",
+        "price",
+        "shares",
+        "refno",
+        "newrefno",
+        "mpid",
+    ]
+)
+
+const types = Dict(
+    "messages" => Dict(
+        "date" => Date,
+        "sec" => Int64,
+        "nano" => Int64,
+        "type" => Char,
+        "event" => Char,
+        "ticker" => String7,
+        "side" => Char,
+        "price" => Int64,
+        "shares" => Int64,
+        "refno" => Int64,
+        "newrefno" => Int64,
+        "mpid" => String7,
+    ),
+    "orderbooks" => Dict(
+        
+    ),
+    "noii" => Dict(
+        
+    ),
+    "trades" => Dict(
+
+    )
+)
+
+function find(b::FileSystem, collection, ticker, date)
+    try
+        df = CSV.File(joinpath(b.url, collection, ticker, string(date), "partition.csv"), header=headers[collection]) |> DataFrame
+
+        return df
+    catch
+        throw(e)
+    end
 end
 
 textify(item::Writable) = to_csv(item)
@@ -306,17 +362,23 @@ function insert(b::MongoDB, items, collection, ticker::String, date::Date)
     return 0
 end
 
-bsonify(item) = Mongoc.BSON(JSON.json(item)) # using JSON b/c we want inserts to be JSON-compatible
-
-function find(date::Date, ticker, collection, b::MongoDB)
+function find(b::MongoDB, collection, ticker, date)
     client = Mongoc.Client(b.url)
-    Mongoc.find(client[b.db_name][collection],
-        Mongoc.BSON(
+
+    try
+        doc = bsonify(Dict(
             "ticker" => ticker,
             "date" => string(date)
-        )
-    )
+        ))
+        res = Mongoc.find(client[b.db_name][collection], doc)
+
+        return res
+    catch e
+        throw(e)
+    end
 end
+
+bsonify(item) = Mongoc.BSON(JSON.json(item)) # using JSON b/c we want inserts to be JSON-compatible
 
 function create_index(db, collection::Mongoc.Collection, key::Mongoc.BSON, options::AbstractArray{Pair{String,T}}, name::String) where {T<:Any}
     cmd = Mongoc.BSON(
