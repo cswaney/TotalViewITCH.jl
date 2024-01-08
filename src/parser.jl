@@ -1,14 +1,23 @@
 """
     Parser
-...
+
+A struct used to parse TotalViewITCH files and their contents to disk.
 
 ### Details
-...
+Parsers are responsible for deserializing order book messages stored in raw
+(binary) TotalViewITCH files and generating order book snapshots.  Parsers wrap
+`Backend` objects that write messages and order book snapshots to disk. By
+default, parsers maintain the first five levels of each order book the user
+requests to track and writes out data after every `buffer_size` messages read
+for each ticker (separately).
 
-### Example
+### Examples
 ```julia
+parser = Parser{FileSystem}("./data/test")
+parser("./data/bin/S031413-v41.txt", Date("2013-03-14"), ["A"], 4.1)
+
 parser = Parser{MongoDB}("mongodb://localhost:27017")
-parser("data/bin/S022717-v50.txt", ["A"]; date=Date("2017-02-27"), version=5.1)
+parser("data/bin/S022717-v50.txt", Date("2017-02-27"), ["A"], 5.0)
 ```
 """
 struct Parser{T<:Backend}
