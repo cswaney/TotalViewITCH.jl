@@ -13,7 +13,10 @@ end
 """
     SystemMessage
 
-Data structure representing system updates.
+A simple data type representing system updates.
+
+System updates comunicate changes that apply to the entire exchange, such as
+the beginning and ending of trading hours.
 """
 mutable struct SystemMessage <: AbstractMessage
     date::Date
@@ -35,7 +38,10 @@ end
 """
     OrderMessage
 
-Data structure representing order book updates.
+A simple data type representing order book updates.
+
+Order book updates communicate changes to the order book in response to trader
+actions, e.g., add, execute, delete, etc.
 """
 mutable struct OrderMessage <: AbstractMessage
     date::Date
@@ -86,11 +92,7 @@ end
 
 
 function split_message(message::OrderMessage)
-    """
-        split_message(message)
-    
-    Convert a replace message into an add and a delete.
-    """
+    """Convert a replace message into an add and a delete."""
     message.type != 'U' && throw(ArgumentError("cannot split message of type '$(message.type)'"))
     del_message = OrderMessage(
         message.date,
@@ -114,11 +116,7 @@ end
 
 
 function complete_message!(message::OrderMessage, orders::Dict)
-    """
-        complete_message!(message::OrderMessage, orders::Dict)
-    
-    Fill in missing message data by matching it to its reference order.
-    """
+    """Fill in missing message data by matching it to its reference order."""
     if message.type == 'U'
         complete_replace_message!(message, orders)
     elseif message.type == 'G'
@@ -194,7 +192,8 @@ end
 """
     NOIIMessage
 
-Data structure representing net order imbalance indicator messages and cross trade messages.
+A simple data type representing net order imbalance indicator messages and cross
+trade messages.
 """
 mutable struct NOIIMessage <: AbstractMessage
     date::Date
@@ -222,7 +221,7 @@ end
 """
     TradeMessage
 
-Data structure representing trades.
+A simple data type representing trade messages.
 """
 mutable struct TradeMessage <: AbstractMessage
     date::Date
