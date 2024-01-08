@@ -20,7 +20,15 @@ function teardown(b::Backend)::Bool end
 """
     FileSystem <: Backend
 
-...
+A backend for storing data to the local file system.
+
+Data is stored with the following directory structure:
+
+root
+|- collection
+   |- ticker
+      |- date
+         |- partition.csv
 """
 struct FileSystem <: Backend
     url
@@ -41,29 +49,8 @@ end
 """
     build(b::Backend; kwargs)
 
-Scaffold a database. The structure of the database is:
-
-    url
-     |- orderbooks
-         |- aapl
-            |- 20170101
-            |- ...
-         |- ...
-     |- messages
-         |- aapl
-            |- 20170101
-            |- ...
-         |- ...
-     |- trades
-         |- aapl
-            |- 20170101
-            |- ...
-         |- ...
-     |- noii
-         |- aapl
-            |- 20170101
-            |- ...
-         |- ...
+Scaffold a database. By default, the program prompts the user to overwrite
+existing files. Set `force=true` to overwrite existing files without prompting.
 """
 function build(b::FileSystem; force=false)
     if check_exists(b)
@@ -163,6 +150,12 @@ const types = Dict(
     )
 )
 
+"""
+    find(b::FileSystem, collection, ticker, date)
+
+Finds all data for the provided collection, ticker and date and returns a
+`DataFrame`.
+"""
 function find(b::FileSystem, collection, ticker, date)
     try
         df = CSV.File(joinpath(b.url, collection, ticker, string(date), "partition.csv"), header=headers[collection]) |> DataFrame
@@ -175,6 +168,11 @@ end
 
 textify(item::Writable) = to_csv(item)
 
+"""
+    clean(date::Date, ticker::String, b::FileSystem)
+
+Remove all data found for the provided date and ticker.
+"""
 function clean(date::Date, ticker::String, b::FileSystem)
     try
         rm(joinpath(b.url, "messages", ticker, string(date)), recursive=true)
@@ -203,6 +201,12 @@ function clean(date::Date, ticker::String, b::FileSystem)
     return true
 end
 
+"""
+    teardown(b::FileSystem)
+
+Remove all database files. Set `force=true` to skip the default confirmation
+prompt.
+"""
 function teardown(b::FileSystem; force=false)
     !check_exists(b) && throw(ErrorException("Database $(abspath(b.url)) not found."))
 
@@ -228,7 +232,17 @@ end
 """
     MongoDB <: Backend
 
-...
+A backend for storing data to MongoDB.
+
+The default database name is "totalview-itch", which contains the following 
+collections:
+
+- messages
+- orderbooks
+- noii
+- trades
+
+All collections are indexed by ticker and date fields.
 """
 struct MongoDB <: Backend
     url
