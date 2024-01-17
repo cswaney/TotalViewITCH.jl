@@ -71,10 +71,10 @@ relevant TotalView specification.
 Each row of the `messages` table indicates an update to the order book. The types of updates are:
 
 - Add (`A` or `F`)
-- Cancel (`C`)
+- Cancel (`X`)
 - Delete (`D`)
 - Replace (`U`)
-- Execute (`E` or `X`)
+- Execute (`E` or `C`)
 
 Note that replace orders are **not** split into their constituent add and delete orders in the database.
 
