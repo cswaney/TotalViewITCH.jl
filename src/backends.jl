@@ -80,18 +80,31 @@ end
 
 function insert(b::FileSystem, items, collection, ticker, date)
 
-    if !isdir(joinpath(b.url, collection, ticker))
-        mkdir(joinpath(b.url, collection, ticker))
-    end
-
-    if !isdir(joinpath(b.url, collection, ticker, string(date)))
-        mkdir(joinpath(b.url, collection, ticker, string(date)))
-    end
-
+    
     if length(items) > 0
+        if collection in ["messages", "orderbooks"]
+            if !isdir(joinpath(b.url, collection, "ticker=$ticker"))
+                mkdir(joinpath(b.url, collection, "ticker=$ticker"))
+            end
+        
+            if !isdir(joinpath(b.url, collection, "ticker=$ticker", "date=$date"))
+                mkdir(joinpath(b.url, collection, "ticker=$ticker", "date=$date"))
+            end
+        else
+            if !isdir(joinpath(b.url, collection, "date=$date"))
+                mkdir(joinpath(b.url, collection, "date=$date"))
+            end
+        end
+
         try
-            open(joinpath(b.url, collection, ticker, string(date), "partition.csv"), "a+") do io
-                write(io, join(textify.(items), ""))
+            if collection in ["messages", "orderbooks"]
+                open(joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv"), "a+") do io
+                    write(io, join(textify.(items), ""))
+                end
+            else
+                open(joinpath(b.url, collection, "date=$date", "partition.csv"), "a+") do io
+                    write(io, join(textify.(items), ""))
+                end
             end
             n = length(items)
             @info "Inserted $n items to collection: $(collection)"
@@ -158,7 +171,11 @@ Finds all data for the provided collection, ticker and date and returns a
 """
 function find(b::FileSystem, collection, ticker, date)
     try
-        df = CSV.File(joinpath(b.url, collection, ticker, string(date), "partition.csv"), header=headers[collection]) |> DataFrame
+        if collection in ["messages", "orderbooks"]
+            df = CSV.File(joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv"), header=headers[collection]) |> DataFrame
+        else
+            df = CSV.File(joinpath(b.url, collection, "date=$date", "partition.csv"), header=headers[collection]) |> DataFrame
+        end
 
         return df
     catch
@@ -175,7 +192,7 @@ Remove all data found for the provided date and ticker.
 """
 function clean(date::Date, ticker::String, b::FileSystem)
     try
-        rm(joinpath(b.url, "messages", ticker, string(date)), recursive=true)
+        rm(joinpath(b.url, "messages", "ticker=$ticker", "date=$date"), recursive=true)
     catch
         @debug "No order message data found for ticker=$ticker, date=$date"
     end
