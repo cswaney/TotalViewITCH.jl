@@ -459,27 +459,27 @@ function get_replace_message(io, date, sec, version::ITCHVersion{5.0})
     return ReplaceMessage(date, sec, nano, refno, newrefno, shares, price)
 end
 
-function get_cross_trade_message(io, date, sec, version::ITCHVersion{4.1})
-    nano = Int(ntoh(read(io, UInt32)))
-    shares = Int(ntoh(read(io, UInt64)))
-    ticker = read_string(io, 8)
-    price = Int(ntoh(read(io, UInt32)))
-    _ = Int(ntoh(read(io, UInt64))) # matchno
-    event = Char(read(io, Char))
-    return CrossTradeMessage(date, sec, nano, shares, ticker, price, event)
-end
+# function get_cross_trade_message(io, date, sec, version::ITCHVersion{4.1})
+#     nano = Int(ntoh(read(io, UInt32)))
+#     shares = Int(ntoh(read(io, UInt64)))
+#     ticker = read_string(io, 8)
+#     price = Int(ntoh(read(io, UInt32)))
+#     _ = Int(ntoh(read(io, UInt64))) # matchno
+#     event = Char(read(io, Char))
+#     return CrossTradeMessage(date, sec, nano, shares, ticker, price, event)
+# end
 
-function get_cross_trade_message(io, date, sec, version::ITCHVersion{5.0})
-    read(io, 2)
-    read(io, 2)
-    nano = read_uint48(io)
-    shares = Int(ntoh(read(io, UInt64)))
-    ticker = read_string(io, 8)
-    price = Int(ntoh(read(io, UInt32)))
-    _ = Int(ntoh(read(io, UInt64))) # matchno
-    event = Char(read(io, Char))
-    return CrossTradeMessage(date, sec, nano, shares, ticker, price, event)
-end
+# function get_cross_trade_message(io, date, sec, version::ITCHVersion{5.0})
+#     read(io, 2)
+#     read(io, 2)
+#     nano = read_uint48(io)
+#     shares = Int(ntoh(read(io, UInt64)))
+#     ticker = read_string(io, 8)
+#     price = Int(ntoh(read(io, UInt32)))
+#     _ = Int(ntoh(read(io, UInt64))) # matchno
+#     event = Char(read(io, Char))
+#     return CrossTradeMessage(date, sec, nano, shares, ticker, price, event)
+# end
 
 get_message_size(io) = Int(ntoh(read(io, UInt16)))
 get_message_type(io) = Char(read(io, Char))
