@@ -8,7 +8,7 @@ While TotalView data is provided at no charge to academic researchers via the Hi
 
 ## Installation
 The package is not yet part of the general registry. You can install it from GitHub instead:
-```julia
+```
 add https://github.com/cswaney/TotalViewITCH.jl.git
 ```
 
@@ -189,7 +189,7 @@ We plan to process and record the following additional message types:
 
 Note that the format of the database is not stable and will likely change in the near future.
 
-#### Not Planneed
+#### Not Planned
 There are no plans to support the following message categories:
 - broken trade messages (4.6.3)
 - retail price improvement indicator (RPII) messages (4.8),
