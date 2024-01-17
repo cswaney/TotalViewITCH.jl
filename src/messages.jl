@@ -48,7 +48,6 @@ mutable struct OrderMessage <: AbstractMessage
     sec::Int
     nano::Int
     type::Char
-    event::Char
     ticker::String
     side::Char
     price::Int
@@ -59,37 +58,32 @@ mutable struct OrderMessage <: AbstractMessage
 end
 
 function to_csv(message::OrderMessage)
-    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.event),$(message.ticker),$(message.side),$(message.price),$(message.shares),$(message.refno),$(message.newrefno),$(message.mpid)\n"
+    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.ticker),$(message.side),$(message.price),$(message.shares),$(message.refno),$(message.newrefno),$(message.mpid)\n"
 end
 
-function OrderMessage(date, sec, nano, type; event = '-', ticker = "-", side = '-', price = -1, shares = -1, refno = -1, newrefno = -1, mpid = "-")
-    return OrderMessage(date, sec, nano, type, event, ticker, side, price, shares, refno, newrefno, mpid)
+function OrderMessage(date, sec, nano, type; ticker = "-", side = '-', price = -1, shares = -1, refno = -1, newrefno = -1, mpid = "-")
+    return OrderMessage(date, sec, nano, type, ticker, side, price, shares, refno, newrefno, mpid)
 end
 
 function AddMessage(date, sec, nano, refno, ticker, side, price, shares; type='A', mpid="-")
-    return OrderMessage(date, sec, nano, type, '-', ticker, side, price, shares, refno, -1, mpid)
+    return OrderMessage(date, sec, nano, type, ticker, side, price, shares, refno, -1, mpid)
 end
 
 function ExecuteMessage(date, sec, nano, refno, shares; type='E', price=-1)
-    return OrderMessage(date, sec, nano, type, '-', "-", '-', price, shares, refno, -1, "-")
+    return OrderMessage(date, sec, nano, type, "-", '-', price, shares, refno, -1, "-")
 end
 
 function CancelMessage(date, sec, nano, refno, shares)
-    return OrderMessage(date, sec, nano, 'X', '-', "-", '-', -1, shares, refno, -1, "-")
+    return OrderMessage(date, sec, nano, 'X', "-", '-', -1, shares, refno, -1, "-")
 end
 
 function DeleteMessage(date, sec, nano, refno)
-    return OrderMessage(date, sec, nano, 'D', '-', "-", '-', -1, -1, refno, -1, "-")
+    return OrderMessage(date, sec, nano, 'D', "-", '-', -1, -1, refno, -1, "-")
 end
 
 function ReplaceMessage(date, sec, nano, refno, newrefno, shares, price)
-    return OrderMessage(date, sec, nano, 'U', '-', "-", '-', price, shares, refno, newrefno, "-")
+    return OrderMessage(date, sec, nano, 'U', "-", '-', price, shares, refno, newrefno, "-")
 end
-
-function CrossTradeMessage(date, sec, nano, shares, ticker, price, event)
-    return OrderMessage(date, sec, nano, 'Q', event, ticker, '-', price, shares, -1, -1, "-")
-end
-
 
 function split_message(message::OrderMessage)
     """Convert a replace message into an add and a delete."""
@@ -113,7 +107,6 @@ function split_message(message::OrderMessage)
     )
     return del_message, add_message
 end
-
 
 function complete_message!(message::OrderMessage, orders::Dict)
     """Fill in missing message data by matching it to its reference order."""

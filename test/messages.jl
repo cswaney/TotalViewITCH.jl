@@ -127,5 +127,5 @@ end
 
 @testset "Messages.IO" begin
     add_message = AddMessage(date, 0, 0, 123456789, "AAPL", 'B', 125, 100)
-    @test to_csv(add_message) == "2010-01-01,0,0,A,-,AAPL,B,125,100,123456789,-1,-\n"
+    @test to_csv(add_message) == "2010-01-01,0,0,A,AAPL,B,125,100,123456789,-1,-\n"
 end
