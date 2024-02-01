@@ -1,5 +1,6 @@
 # TotalViewITCH.jl
 A toolkit to process NASDAQ TotalView-ITCH data for academic research.
+<!-- https://cswaney.github.io/TotalViewITCH.jl -->
 
 ## Description
 Nasdaq TotalView-ITCH (“TotalView”) is a data feed used by professional traders to maintain a real-time view of market conditions. TotalView disseminates all quote and order activity for securities traded on the Nasdaq exchange—several billion messages per day—allowing users to reconstruct the limit order book for any security up to arbitrary depth with nanosecond precision. It is a unique data source for financial economists and engineers examining topics such as information flows through lit exchanges, optimal trading strategies, and the development of macro-level indicators from micro-level signals (e.g., a market turbulence warning).
