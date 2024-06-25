@@ -505,8 +505,8 @@ function get_message_body(io, size, type, date, sec, version::ITCHVersion)
         return get_delete_message(io, date, sec, version)
     elseif type == 'U'
         return get_replace_message(io, date, sec, version)
-    elseif type == 'Q'
-        return get_cross_trade_message(io, date, sec, version)
+    # elseif type == 'Q'
+    #     return get_cross_trade_message(io, date, sec, version)
     elseif type == 'P'
         return get_trade_message(io, date, sec, version)
     elseif type == 'I'
