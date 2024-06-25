@@ -79,8 +79,6 @@ function build(b::FileSystem; force=false)
 end
 
 function insert(b::FileSystem, items, collection, ticker, date)
-
-    
     if length(items) > 0
         if collection in ["messages", "orderbooks"]
             if !isdir(joinpath(b.url, collection, "ticker=$ticker"))
@@ -164,8 +162,7 @@ const types = Dict(
 """
     find(b::FileSystem, collection, ticker, date)
 
-Finds all data for the provided collection, ticker and date and returns a
-`DataFrame`.
+Finds all data for the provided collection, ticker and date and returns a `DataFrame`.
 """
 function find(b::FileSystem, collection, ticker, date)
     try
