@@ -59,7 +59,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
                 @info "Cleaned up ticker: $ticker."
             end
         else
-            tickers = setdiff(tickers, duplicates_tickers)
+            tickers = setdiff(tickers, duplicate_tickers)
             if length(tickers) == 0 
                 @warn "No new tickers found. Exiting."
 
