@@ -12,9 +12,9 @@ function check_exists(date::Date, ticker::String, b::Backend)::Bool end
 function build(b::Backend)::Bool end
 function insert(b::Backend, items, collection, ticker, date)::Int end
 function find(b::Backend, collection, ticker, date) end
-function clean(date::Date, ticker::String, b::Backend)::Bool end
-function clean(date::Date, b::Backend)::Bool end
-function clean(ticker::String, b::Backend)::Bool end
+function clean(date::Date, ticker::String, b::Backend)::Nothing end
+function clean(date::Date, b::Backend)::Nothing end
+function clean(ticker::String, b::Backend)::Nothing end
 function teardown(b::Backend)::Bool end
 
 """
@@ -189,28 +189,26 @@ function clean(date::Date, ticker::String, b::FileSystem)
     try
         rm(joinpath(b.url, "messages", "ticker=$ticker", "date=$date"), recursive=true)
     catch
-        @debug "No order message data found for ticker=$ticker, date=$date"
+        @warn "No order message data found for ticker=$ticker, date=$date"
     end
     
     try
-        rm(joinpath(b.url, "trades", ticker, string(date)), recursive=true)
+        rm(joinpath(b.url, "trades", "ticker=$ticker", "date=$date"), recursive=true)
     catch
-        @debug "No trade message data found for ticker=$ticker, date=$date"
+        @warn "No trade message data found for ticker=$ticker, date=$date"
     end
     
     try
-        rm(joinpath(b.url, "noii", ticker, string(date)), recursive=true)
+        rm(joinpath(b.url, "noii", "ticker=$ticker", "date=$date"), recursive=true)
     catch
-        @debug "No noii message data found for ticker=$ticker, date=$date"
+        @warn "No noii message data found for ticker=$ticker, date=$date"
     end
     
     try
-        rm(joinpath(b.url, "books", ticker, string(date)), recursive=true)
+        rm(joinpath(b.url, "orderbooks", "ticker=$ticker", "date=$date"), recursive=true)
     catch
-        @debug "No book data found for ticker=$ticker, date=$date"
+        @warn "No book data found for ticker=$ticker, date=$date"
     end
-
-    return true
 end
 
 """
@@ -456,8 +454,6 @@ function clean(date::Date, ticker::String, b::MongoDB)
                 "date" => string(date)
             )
         )
-
-        return true
     catch e
         throw(e)
     end
