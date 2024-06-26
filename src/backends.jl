@@ -42,8 +42,20 @@ function check_exists(b::FileSystem)
     return isdir(b.url)
 end
 
-function check_exists(date::Date, ticker::String, b::FileSystem)
-    return isdir(joinpath(b.url, "messages", ticker, string(date)))
+function check_exists(date::Date, ticker::String, b::FileSystem; collection::Symbol=:any)
+    collections = [:messages, :orderbooks, :noii, :trades]
+    if collection == :any
+        for collection in collections
+            if isdir(joinpath(b.url, string(collection), "ticker=$ticker", "date=$date"))
+                return true
+            end
+        end
+        return false
+    elseif collection in collections
+        return isdir(joinpath(b.url, string(collection), "ticker=$ticker", "date=$date"))
+    else
+        error("Collection should be one of: :any, $(join(map(x -> ":$x", collections), ", ")).")
+    end
 end
 
 """
