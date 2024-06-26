@@ -1,9 +1,3 @@
-using TotalViewITCH: Parser, Backend, FileSystem, MongoDB, find
-using Dates
-
-using Profile
-using ProfileView
-
 """
 A simple example demonstrating how to parse and read data for a single ticker.
 
@@ -13,9 +7,12 @@ docker run -p 27017:27017 ./data/db:/data/db mongo:latest
 ```
 """
 
+using TotalViewITCH: Parser, Backend, FileSystem, MongoDB, find
+using Dates
+
 # Storing results in local file system
 parser = Parser{FileSystem}("./data/test")
-@profview parser("./data/bin/S031413-v41.txt", Date("2013-03-14"), ["A"], 4.1)
+parser("./data/bin/S031413-v41.txt", Date("2013-03-14"), ["A"], 4.1)
 df = find(parser.backend, "messages", "A", Date("2013-03-14"))
 
 # Storing results in MongoDB
