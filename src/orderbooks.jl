@@ -85,7 +85,7 @@ function Book(ticker::String, nlevels::Int)
     return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, ticker, nlevels)
 end
 
-function Boook(ticker)
+function Book(ticker)
     return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, ticker, nothing)
 end
 
