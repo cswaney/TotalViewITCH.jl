@@ -223,6 +223,18 @@ function clean(date::Date, ticker::String, b::FileSystem)
     end
 end
 
+function clean(ticker::String, b::FileSystem)
+    collections = ["messages", "noii", "orderbooks", "trades"]
+    for collection in collections
+        p = joinpath(b.url, collection, "ticker=$ticker")
+        if isdir(p)
+            rm(p, recursive=true)
+        else
+            @warn "No $collection data found for ticker=$ticker"
+        end
+    end
+end
+
 """
     teardown(b::FileSystem)
 
