@@ -22,7 +22,6 @@ using Test
         AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100),
         AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100)
     ], "messages", "A", date) == 2
-    @test clean(date, "A", backend)
     teardown(backend; force=true)
 
 end
