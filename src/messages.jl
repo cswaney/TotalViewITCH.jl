@@ -58,7 +58,7 @@ mutable struct OrderMessage <: AbstractMessage
 end
 
 function to_csv(message::OrderMessage)
-    return "$(message.ticker),$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.ticker),$(message.side),$(message.price),$(message.shares),$(message.refno),$(message.newrefno),$(message.mpid)\n"
+    return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.ticker),$(message.side),$(message.price),$(message.shares),$(message.refno),$(message.newrefno),$(message.mpid)\n"
 end
 
 function OrderMessage(date, sec, nano, type; ticker = "-", side = '-', price = -1, shares = -1, refno = -1, newrefno = -1, mpid = "-")
