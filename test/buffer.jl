@@ -7,7 +7,8 @@ using Test
 @testset "Buffer.FileSystem" begin
     
     date = Date("2017-02-27")
-    backend = FileSystem("./data")
+    nlevels = 3
+    backend = FileSystem("./data", nlevels)
     build(backend; force=true)
 
     buffer = Buffer{FileSystem,OrderMessage}(["A"], backend, "messages", date, 2)

@@ -6,10 +6,41 @@ using Dates
 using Test
 
 
+nlevels = 3
+
+
+@testset "Backend.construct_headers" begin
+    backend = TotalViewITCH.FileSystem("./data", nlevels)
+    @test backend.headers[:orderbooks] == [
+        "sec",
+        "nano",
+        "bid_price_1",
+        "bid_price_2",
+        "bid_price_3",
+        "ask_price_1",
+        "ask_price_2",
+        "ask_price_3",
+        "bid_shares_1",
+        "bid_shares_2",
+        "bid_shares_3",
+        "ask_shares_1",
+        "ask_shares_2",
+        "ask_shares_3"
+    ]
+end
+
+# @testset "Backend.construct_schemas" begin
+#     backend = TotalViewITCH.Postgres("./data", nlevels)
+#     @test backend.schemas[:orderbooks] == Dict(
+
+#     )
+# end
+
+
 @testset "Backend.FileSystem" begin
 
     date = Date("2017-02-27")
-    backend = TotalViewITCH.FileSystem("./data")
+    backend = TotalViewITCH.FileSystem("./data", nlevels)
 
     @test build(backend; force=true)
     @test ping(backend)["status"] == "ok"
