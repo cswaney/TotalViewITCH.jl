@@ -13,4 +13,5 @@ makedocs(
 
 deploydocs(
     repo="github.com/cswaney/TotalViewITCH.jl.git",
+    devbranch="dev"
 )
