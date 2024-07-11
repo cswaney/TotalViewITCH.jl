@@ -25,6 +25,7 @@ struct Parser{T<:Backend}
     nlevels::Int
 end
 
+Parser(backend::Backend) = Parser(backend, backend.nlevels)
 Parser{T}(url::String; nlevels::Int=5) where {T<:Backend} = Parser(T(url, nlevels), nlevels)
 
 function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, version::AbstractFloat; buffer_size::Int=10_000) where {T<:Backend}
