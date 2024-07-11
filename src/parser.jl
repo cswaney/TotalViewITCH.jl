@@ -41,7 +41,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
 
     if !check_exists(parser.backend)
         resp = input("No database found. Would you like to create one? (Y/n)")
-        if lowercase(resp) == 'y'
+        if lowercase(resp) == "y"
             build(parser.backend; force=true)
         else
             @info "Process cancelled. Exiting."
