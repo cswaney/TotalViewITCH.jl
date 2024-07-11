@@ -43,6 +43,7 @@ df = find(parser.backend, "messages", "A", Date("2013-03-14"))
 This method isn't recommended for large-scale analysis, but works fine for
 exploring single ticker-dates.
 
+> [!TIP]
 > For large-scale analyses, its recommended to convert the processed data to
 > the Apache Parquet format and use tools such as Apache Spark.
 
@@ -203,7 +204,8 @@ We plan to process and record the following additional message types:
 - market participant position codes,
 - execution codes
 
-Note that the format of the database is not stable and will likely change in the near future.
+> [!WARNING]
+> Note that the format of the database is not stable and will likely change in the near future.
 
 #### Not Planned
 There are no plans to support the following message categories:
