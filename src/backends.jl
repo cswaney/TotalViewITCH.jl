@@ -368,9 +368,10 @@ All collections are indexed by ticker and date fields.
 struct MongoDB <: Backend
     url
     db_name
+    nlevels
 end
 
-MongoDB(url; db_name="totalview-itch") = MongoDB(url, db_name)
+MongoDB(url, nlevels::Int; db_name="totalview-itch") = MongoDB(url, db_name, nlevels)
 
 function ping(b::MongoDB)
     try
