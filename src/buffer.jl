@@ -1,4 +1,45 @@
 """
+    GlobaBuffer
+
+An abstraction to handle writing parsed data to disk.
+
+Parsed data is written to the buffer and the buffer flushes itself to its backend.
+"""
+mutable struct GlobalBuffer{T<:Backend,S<:Writable}
+    data::Vector{S}
+    backend::T
+    collection::String
+    date::Date
+    maxsize::Int
+    cnt::Int # number of items flushed
+    ptr::Int
+end
+
+function GlobalBuffer{T,S}(backend::T, collection, date, maxsize) where {T<:Backend,S<:Writable}
+    data = Vector{S}(undef, maxsize)
+    ptr = 1
+    return GlobalBuffer{T,S}(data, backend, collection, date, maxsize, 0, ptr)
+end
+
+function Base.write(b::GlobalBuffer, item)
+    b.data[b.ptr] = item
+    b.ptr += 1
+    b.ptr == b.maxsize + 1 && flush(b)
+end
+
+function flush(b::GlobalBuffer)
+    n = insert(b.backend, b.data[1:b.ptr-1], b.collection, Nothing, b.date)
+    b.cnt += n
+    reset(b)
+end
+
+function reset(b::GlobalBuffer)
+    b.ptr = 1
+end
+
+
+
+"""
     Buffer
 
 An abstraction to handle writing parsed data to disk.
