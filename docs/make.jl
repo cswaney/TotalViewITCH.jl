@@ -13,6 +13,9 @@ makedocs(
 
 deploydocs(
     repo="github.com/cswaney/TotalViewITCH.jl.git",
-    devbranch="dev",
+    devbranch="master",
+    devurl="dev",
     push_preview=true,
+    versions=["stable" => "v^", "v#.#.#", "dev" => "dev"],
+
 )
