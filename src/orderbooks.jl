@@ -89,6 +89,17 @@ function Book(ticker)
     return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, ticker, nothing)
 end
 
+function Base.copy(book::Book)
+    return Book(
+        copy(book.bids),
+        copy(book.asks),
+        book.sec,
+        book.nano,
+        book.ticker,
+        book.nlevels,
+    )
+end
+
 function to_csv(book::Book)
     n = book.nlevels
     nbids = length(book.bids)

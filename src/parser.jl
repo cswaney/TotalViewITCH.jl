@@ -28,7 +28,7 @@ end
 Parser(backend::Backend) = Parser(backend, backend.nlevels)
 Parser{T}(url::String; nlevels::Int=5) where {T<:Backend} = Parser(T(url, nlevels), nlevels)
 
-function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, version::AbstractFloat; buffer_size::Int=10_000) where {T<:Backend}
+function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, version::AbstractFloat; buffer_size::Int=10_000, global_buffer_size::Int=1_000_000) where {T<:Backend}
 
     version = ITCHVersion{version}()
 
@@ -72,12 +72,15 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
     end
     @info "New tickers to process: $tickers."
  
+    @info "Deleting existing global data"
+    clean_globals(date, parser.backend)
+
     @info "Setting up parser..."
     orders = Dict{Int,Order}()
     books = Dict([t => Book(t, parser.nlevels) for t in tickers])
     messages_buffer = Buffer{T,OrderMessage}(tickers, parser.backend, "messages", date, buffer_size)
     trades_buffer = Buffer{T,TradeMessage}(tickers, parser.backend, "trades", date, buffer_size)
-    noii_buffer = Buffer{T,NOIIMessage}(tickers, parser.backend, "noii", date, buffer_size)
+    noii_buffer = GlobalBuffer{T,NOIIMessage}(parser.backend, "noii", date, global_buffer_size)
     orderbooks_buffer = Buffer{T,Book}(tickers, parser.backend, "orderbooks", date, buffer_size)
     @info "Parser setup complete."
 
@@ -146,7 +149,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
                 update!(books[message.ticker], del_message)
                 add!(orders, add_message)
                 update!(books[message.ticker], add_message)
-                write(orderbooks_buffer, books[message.ticker]) # only save combined book update
+                write(orderbooks_buffer, copy(books[message.ticker])) # only save combined book update
             end
         elseif message.type in ['E', 'C', 'X']
             complete_execute_cancel_message!(message, orders)
@@ -156,7 +159,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
                 message_writes += 1
                 update!(orders, message)
                 update!(books[message.ticker], message)
-                write(orderbooks_buffer, books[message.ticker])
+                write(orderbooks_buffer, copy(books[message.ticker]))
             end
         elseif message.type == 'D'
             complete_delete_message!(message, orders)
@@ -166,7 +169,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
                 message_writes += 1
                 update!(orders, message)
                 update!(books[message.ticker], message)
-                write(orderbooks_buffer, books[message.ticker])
+                write(orderbooks_buffer, copy(books[message.ticker]))
             end
         elseif message.type in ['A', 'F']
             if message.ticker in tickers
@@ -175,22 +178,18 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
                 message_writes += 1
                 add!(orders, message)
                 update!(books[message.ticker], message)
-                write(orderbooks_buffer, books[message.ticker])
+                write(orderbooks_buffer, copy(books[message.ticker]))
             end
-        elseif message.type == 'P'
-            # TODO
+        elseif message.type in ['Q', 'P']
             @debug "$message"
-            # if message.ticker in tickers
-            #     push!(trades[message.ticker], to_csv(message))
-            #     trade_writes += 1
-            # end
-        elseif message.type in ['Q', 'I']
-            # TODO
+            if message.ticker in tickers
+                write(trades_buffer, message)
+                trade_writes += 1
+            end
+        elseif message.type == 'I'
             @debug "$message"
-            # if message.ticker in tickers
-            #     push!(imbalances[message.ticker], to_csv(message))
-            #     noii_writes += 1
-            # end
+            write(noii_buffer, message)
+            noii_writes += 1
         end
 
         if message_reads % 10_000_000 == 0
