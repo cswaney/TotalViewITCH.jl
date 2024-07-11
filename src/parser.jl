@@ -62,7 +62,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
             end
         else
             tickers = setdiff(tickers, duplicate_tickers)
-            if length(tickers) == 0 
+            if length(tickers) == 0
                 @warn "No new tickers found. Exiting."
 
                 return
@@ -71,7 +71,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
         end
     end
     @info "New tickers to process: $tickers."
- 
+
     @info "Deleting existing global data"
     clean_globals(date, parser.backend)
 
@@ -223,7 +223,7 @@ end
 using BitIntegers
 @define_integers 48
 
-BUFFER_SIZE = 10 ^ 4
+BUFFER_SIZE = 10^4
 REPORT_FREQ = 1800
 
 read_string(io::IO, n) = rstrip(String(read(io, n)), ' ')
@@ -506,8 +506,8 @@ function get_message_body(io, size, type, date, sec, version::ITCHVersion)
         return get_delete_message(io, date, sec, version)
     elseif type == 'U'
         return get_replace_message(io, date, sec, version)
-    # elseif type == 'Q'
-    #     return get_cross_trade_message(io, date, sec, version)
+        # elseif type == 'Q'
+        #     return get_cross_trade_message(io, date, sec, version)
     elseif type == 'P'
         return get_trade_message(io, date, sec, version)
     elseif type == 'I'

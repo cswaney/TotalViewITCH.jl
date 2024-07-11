@@ -16,18 +16,18 @@ end
 
 import Base.==
 function (==)(a::Order, b::Order)
-    a.ticker == b.ticker || return false 
-    a.side == b.side || return false 
-    a.price == b.price || return false 
+    a.ticker == b.ticker || return false
+    a.side == b.side || return false
+    a.price == b.price || return false
     a.shares == b.shares || return false
-    
+
     return true
 end
 
 function add!(orders::Dict{Int,Order}, message::OrderMessage)
     """
         add_order!(orders::Dict, message::OrderMessage)
-    
+
     Add an order to an order collection based on a new message.
     """
     !(message.type in ['A', 'F']) && throw(ArgumentError("Unable to add order (invalid message type $(message.type))"))
@@ -45,7 +45,7 @@ end
 function update!(orders::Dict{Int,Order}, message::OrderMessage)
     """
         `update!(orders::Dict{Int,Order}, message::OrderMessage)`
-    
+
     Find and update an order from a collection of orders based on a new message.
     """
     if haskey(orders, message.refno)
@@ -122,7 +122,7 @@ end
 function update!(book::Book, message::OrderMessage)
     """
         `update(book::Book, message::OrderMessage)`
-    
+
     Update an order book from a new message.
     """
     book.ticker != message.ticker && throw(ArgumentError("Unable to update order book (book ticker ($(book.ticker)) doesn't match message ticker ($(message.ticker))"))

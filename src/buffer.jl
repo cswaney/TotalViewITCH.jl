@@ -56,7 +56,7 @@ mutable struct Buffer{T<:Backend,S<:Writable}
     ptrs::Dict{String,Int}
 end
 
-function Buffer{T, S}(tickers, backend::T, collection, date, maxsize) where {T<:Backend,S<:Writable}
+function Buffer{T,S}(tickers, backend::T, collection, date, maxsize) where {T<:Backend,S<:Writable}
     data = Dict([t => Vector{S}(undef, maxsize) for t in tickers])
     ptrs = Dict([t => 1 for t in tickers])
     return Buffer{T,S}(data, backend, collection, date, maxsize, 0, ptrs)
