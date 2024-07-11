@@ -22,11 +22,13 @@ parser("data/bin/S022717-v50.txt", Date("2017-02-27"), ["A"], 5.0)
 """
 struct Parser{T<:Backend}
     backend::T
+    nlevels::Int
 end
 
-Parser{T}(url::String) where {T<:Backend} = Parser(T(url))
+Parser(backend::Backend) = Parser(backend, backend.nlevels)
+Parser{T}(url::String; nlevels::Int=5) where {T<:Backend} = Parser(T(url, nlevels), nlevels)
 
-function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, version::AbstractFloat; nlevels::Int=5, buffer_size::Int=10_000) where {T<:Backend}
+function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, version::AbstractFloat; buffer_size::Int=10_000) where {T<:Backend}
 
     version = ITCHVersion{version}()
 
@@ -39,7 +41,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
 
     if !check_exists(parser.backend)
         resp = input("No database found. Would you like to create one? (Y/n)")
-        if lowercase(resp) == 'y'
+        if lowercase(resp) == "y"
             build(parser.backend; force=true)
         else
             @info "Process cancelled. Exiting."
@@ -72,7 +74,7 @@ function (parser::Parser{T})(file::String, date::Date, tickers::Vector{String}, 
  
     @info "Setting up parser..."
     orders = Dict{Int,Order}()
-    books = Dict([t => Book(t, nlevels) for t in tickers])
+    books = Dict([t => Book(t, parser.nlevels) for t in tickers])
     messages_buffer = Buffer{T,OrderMessage}(tickers, parser.backend, "messages", date, buffer_size)
     trades_buffer = Buffer{T,TradeMessage}(tickers, parser.backend, "trades", date, buffer_size)
     noii_buffer = Buffer{T,NOIIMessage}(tickers, parser.backend, "noii", date, buffer_size)

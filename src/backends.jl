@@ -5,6 +5,88 @@ using DataFrames
 
 const Writable = Union{Book,OrderMessage,TradeMessage,NOIIMessage}
 
+
+function construct_headers(nlevels)
+    headers = Dict{Symbol,Vector{String}}()
+    headers[:messages] = ["date", "sec", "nano", "type", "ticker", "side", "price", "shares", "refno", "newrefno", "mpid"]
+    headers[:orderbooks] = book_headers(nlevels)
+    headers[:noii] = ["date", "sec", "nano", "type", "ticker", "paired", "imbalance", "direction", "far", "near", "current", "cross"]
+    headers[:trades] = ["date", "sec", "nano", "type", "ticker", "side", "price", "shares"]
+    return headers
+end
+
+function construct_schemas(nlevels)
+    schemas = Dict{Symbol,Dict{Symbol,DataType}}()
+    schemas[:messages] = Dict(
+        "date" => Date,
+        "sec" => Int64,
+        "nano" => Int64,
+        "type" => Char,
+        "ticker" => String7,
+        "side" => Char,
+        "price" => Int64,
+        "shares" => Int64,
+        "refno" => Int64,
+        "newrefno" => Int64,
+        "mpid" => String7,
+    )
+    schemas[:orderbooks] = book_schema(nlevels)
+    schemas[:noii] = Dict(
+        "date" => Date,
+        "sec" => Int64,
+        "nano" => Int64,
+        "type" => Char,
+        "ticker" => String7,
+        "paired" => Int64,
+        "imbalance" => Int64,
+        "direction" => Char,
+        "far" => Int64,
+        "near" => Int64,
+        "current" => Int64,
+        "cross" => Char,
+    )
+    schemas[:trades] = Dict(
+        "date" => Date,
+        "sec" => Int64,
+        "nano" => Int64,
+        "type" => Char,
+        "ticker" => String7,
+        "side" => Char,
+        "price" => Int64,
+        "shares" => Int64,
+    )
+    return schemas
+end
+
+function book_headers(nlevels)
+    nlevels < 1 && error("`nlevels` should be positive.")
+    headers = ["sec", "nano"]
+    append!(headers, ["bid_price_$n" for n in 1:nlevels])
+    append!(headers, ["ask_price_$n" for n in 1:nlevels])
+    append!(headers, ["bid_shares_$n" for n in 1:nlevels])
+    append!(headers, ["ask_shares_$n" for n in 1:nlevels])
+    return headers
+end
+
+function book_schema(nlevels)
+    nlevels < 1 && error("`nlevels` should not be nothing.")
+    """Generate table schema. `type` should be a backend that supports schemas (postgres,
+        parquet, etc.)"""
+    if stype == "parquet"
+        s = Dict("sec" => UInt32, "nano" => UInt64)
+    elseif stype == "postgres"
+        s = Dict("ticker" => String, "date" => Date, "sec" => UInt32, "nano" => UInt64)
+    else
+        error("`stype` should be one of: 'postgres', 'parquet'.")
+    end
+    merge!(s, Dict(["bid_price_$n" => UInt32 for n in 1:nlevels]))
+    merge!(s, Dict(["ask_price_$n" => UInt32 for n in 1:nlevels]))
+    merge!(s, Dict(["bid_shares_$n" => UInt32 for n in 1:nlevels]))
+    merge!(s, Dict(["ask_shares_$n" => UInt32 for n in 1:nlevels]))
+    return s
+end
+
+
 abstract type Backend end
 
 function ping(b::Backend) end
@@ -32,6 +114,13 @@ root
 """
 struct FileSystem <: Backend
     url
+    headers::Dict{Symbol,Vector{String}}
+end
+
+FileSystem(url, nlevels::Int) = FileSystem(url, construct_headers(nlevels))
+
+function set_nlevels!(b::FileSystem, nlevels)
+    b.headers[:orderbooks] = book_headers(nlevels)
 end
 
 function ping(b::FileSystem)
@@ -96,7 +185,6 @@ function insert(b::FileSystem, items, collection, ticker, date)
             if !isdir(joinpath(b.url, collection, "ticker=$ticker"))
                 mkdir(joinpath(b.url, collection, "ticker=$ticker"))
             end
-        
             if !isdir(joinpath(b.url, collection, "ticker=$ticker", "date=$date"))
                 mkdir(joinpath(b.url, collection, "ticker=$ticker", "date=$date"))
             end
@@ -108,12 +196,28 @@ function insert(b::FileSystem, items, collection, ticker, date)
 
         try
             if collection in ["messages", "orderbooks"]
-                open(joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv"), "a+") do io
-                    write(io, join(textify.(items), ""))
+                filepath = joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv")
+                if isfile(filepath)
+                    open(filepath, "a+") do io
+                        write(io, join(textify.(items), ""))
+                    end
+                else
+                    open(filepath, "w") do io
+                        write(io, join(b.headers[Symbol(collection)], ",") * "\n")
+                        write(io, join(textify.(items), ""))
+                    end
                 end
             else
-                open(joinpath(b.url, collection, "date=$date", "partition.csv"), "a+") do io
-                    write(io, join(textify.(items), ""))
+                filepath = joinpath(b.url, collection, "date=$date", "partition.csv")
+                if isfile(filepath)
+                    open(filepath, "a+") do io
+                        write(io, join(textify.(items), ""))
+                    end
+                else
+                    open(filepath, "w") do io
+                        write(io, join(b.headers[Symbol(collection)], ",") * "\n")
+                        write(io, b.headers[Symbol(collection)] * "\n" * join(textify.(items), ""))
+                    end
                 end
             end
             n = length(items)
@@ -130,22 +234,6 @@ function insert(b::FileSystem, items, collection, ticker, date)
     return 0
 end
 
-const headers = Dict(
-    "messages" => [
-        "date",
-        "sec",
-        "nano",
-        "type",
-        "ticker",
-        "side",
-        "price",
-        "shares",
-        "refno",
-        "newrefno",
-        "mpid",
-    ]
-)
-
 const types = Dict(
     "messages" => Dict(
         "date" => Date,
@@ -161,13 +249,10 @@ const types = Dict(
         "mpid" => String7,
     ),
     "orderbooks" => Dict(
-        
     ),
     "noii" => Dict(
-        
     ),
     "trades" => Dict(
-
     )
 )
 
@@ -179,9 +264,11 @@ Finds all data for the provided collection, ticker and date and returns a `DataF
 function find(b::FileSystem, collection, ticker, date)
     try
         if collection in ["messages", "orderbooks"]
-            df = CSV.File(joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv"), header=headers[collection]) |> DataFrame
+            # df = CSV.File(joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv"), header=b.headers[Symbol(collection)]) |> DataFrame
+            df = CSV.File(joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv")) |> DataFrame
         else
-            df = CSV.File(joinpath(b.url, collection, "date=$date", "partition.csv"), header=headers[collection]) |> DataFrame
+            # df = CSV.File(joinpath(b.url, collection, "date=$date", "partition.csv"), header=b.headers[Symbol(collection)]) |> DataFrame
+            df = CSV.File(joinpath(b.url, collection, "date=$date", "partition.csv")) |> DataFrame
         end
 
         return df
@@ -203,19 +290,19 @@ function clean(date::Date, ticker::String, b::FileSystem)
     catch
         @warn "No order message data found for ticker=$ticker, date=$date"
     end
-    
+
     try
         rm(joinpath(b.url, "trades", "ticker=$ticker", "date=$date"), recursive=true)
     catch
         @warn "No trade message data found for ticker=$ticker, date=$date"
     end
-    
+
     try
         rm(joinpath(b.url, "noii", "ticker=$ticker", "date=$date"), recursive=true)
     catch
         @warn "No noii message data found for ticker=$ticker, date=$date"
     end
-    
+
     try
         rm(joinpath(b.url, "orderbooks", "ticker=$ticker", "date=$date"), recursive=true)
     catch
@@ -281,9 +368,10 @@ All collections are indexed by ticker and date fields.
 struct MongoDB <: Backend
     url
     db_name
+    nlevels
 end
 
-MongoDB(url; db_name="totalview-itch") = MongoDB(url, db_name)
+MongoDB(url, nlevels::Int; db_name="totalview-itch") = MongoDB(url, db_name, nlevels)
 
 function ping(b::MongoDB)
     try
