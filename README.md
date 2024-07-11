@@ -7,13 +7,15 @@ Nasdaq TotalView-ITCH (“TotalView”) is a data feed used by professional trad
 
 While TotalView data is provided at no charge to academic researchers via the Historical TotalView-ITCH offering, the historical data offering uses a binary file specification that poses challenges for researchers. TotalViewITCH.jl is a pure Julia package developed to efficiently process historical data files for academic research purposes. The package consists of: (1) a core module to parse Historical TotalView binary file format messages (i.e., deserialization), (2) a module to reconstruct limit order books from parsed messages, and (3) a module to store processed data into a research-friendly format.
 
-## Installation
+## Getting Started
+
+### Installation
 The package is not yet part of the general registry. You can install it from GitHub instead:
 ```
 add https://github.com/cswaney/TotalViewITCH.jl.git
 ```
 
-## Usage
+### Basic Usage
 Usage is straightforward:
 ```julia
 using TotalViewITCH: Parser, FileSystem, find
@@ -33,7 +35,22 @@ Processing of multiple files (i.e., dates) should be performed with multiple
 processes or, better yet, using multiple jobs on a high-performance computing
 cluster.
 
-The output has the following directory structure:
+The processed data can be loaded using your favorite data processing tools (e.g., `DataFrames.jl`). For convenience, TotalViewITCHh provices a `find` method to pull all
+data associated with a ticker-date pair:
+```julia
+df = find(parser.backend, "messages", "A", Date("2013-03-14"))
+```
+This method isn't recommended for large-scale analysis, but works fine for
+exploring single ticker-dates.
+
+> For large-scale analyses, its recommended to convert the processed data to
+> the Apache Parquet format and use tools such as Apache Spark.
+
+## Backends
+TotalViewITCH.jl aims to support a variety data storage options via `Backends`. A backend is a struct that knows how to read and write ITCH data stored in a particular format. The currently supported backends are `FileSystem` and `MongoDB`.
+
+### FileSystem
+The `FileSystem` backend stores data in CSV format. Output has the following directory structure:
 ```
 test
 |- messages
@@ -45,18 +62,29 @@ test
 |- trades
 ```
 This structure is convenient for parallelizing analyses performed at the
-ticker-date level. For convenience, there is also a `find` method to pull all
-data associated with a ticker-date pair:
-```julia
-df = find(parser.backend, "messages", "A", Date("2013-03-14"))
+ticker-date level. 
+
+### `MongoDB`
+For small to medium sized databases, `TotalViewITCH` also provides a MongoDB backend. To set up a MongoDB database with Docker, run the following command in a terminal:
+```bash
+docker run -p 27017:27017 --volume path/to/data/db:/data/db mongo:latest
 ```
-This method isn't recommended for large-scale analysis, but works fine for
-exploring single ticker-dates.
+This command exposes the database to your local machine on port `27017`. Now you
+can populate the database in Julia:
+```julia
+using TotalViewITCH: Parser, MongoDB
+backend = MongoDB("mongodb://localhost:27017", "test")
+parser = Parser{MongoDB}(backend)
+parser("./data/bin/S031413-v41.txt", Date("2013-03-14"), ["A"], 4.1)
+```
 
-> For large-scale analyses, its recommended to convert the processed data to
-> the Apache Parquet format and use tools such as Apache Spark.
+### Postgres
+Coming soon 🦺 🚧 🔨
 
-### Data
+### Parquet
+Coming soon 🦺 🚧 🔨
+
+## Data
 The default parsing method creates four tables/collections:
 
 - `messages`: messages that reflect order book updates,
@@ -68,7 +96,7 @@ All records are stored in ascending temporal order, and all data is stored witho
 modification, i.e., all fields adhere to the format described in the
 relevant TotalView specification.
 
-#### 1. `messages`
+### `messages`
 Each row of the `messages` table indicates an update to the order book. The types of updates are:
 
 - Add (`A` or `F`)
@@ -92,7 +120,7 @@ Note that replace orders are **not** split into their constituent add and delete
 | newrefno | `Int`    | A day-unique reference number associated with a new limit order.        |           | `Missing` |
 | mpid     | `String` | An optional market participant identifier.                              |           | `Missing` |
 
-#### 2. `orderbooks`
+### `orderbooks`
 Each row the `orderbooks` table represents a snapshot of the order book associated with an order book update. That is, the `n`-th row of the `orderbooks` table represents the state of the order book immediately following the update indicated by the `n`-th row of the `messages` table. The exact fields available depend on the number of levels of levels tracked during parsing, `N`. For a given `N`, prices and shares are recorded in order from best to worst offer for bids and asks, respectively.
 
 | Field          | Type   | Description                                                     | Required?   | Default   |
@@ -105,7 +133,7 @@ Each row the `orderbooks` table represents a snapshot of the order book associat
 | bid_shares_`n` | `Int`  | The offer volume at the `n`-th best bid (`N=1,..., N`).         | ✓           | `Missing` |
 | ask_shares_`n` | `Int`  | The offer volume at the `n`-th best ask (`N=1,..., N`).         | ✓           | `Missing` |
 
-#### 3. `noii`
+### `noii`
 Net Order Imbalance Indicator (NOII) messages are disseminated prior to market open and close as well as during quote only periods. The `noii` collection stores these messages for all tickers in a single file for each date.
 
 | Field      | Type     | Description                                                     | Required? | Default   |
@@ -122,7 +150,7 @@ Net Order Imbalance Indicator (NOII) messages are disseminated prior to market o
 | near       | `Int`    | A hypothetical clearing price for cross and continuous orders.  | ✓         |           |
 | current    | `Int`    | The price at which the imbalance is calculated.                 | ✓         |           |
 
-#### 4. `trades`
+### `trades`
 Rows of the `trades` collection reflect two types of trades that are not captured in the order book update: cross and non-cross trades. Non-cross trade messages "provide details for normal match events involving non-displayable order type"—i.e., hidden orders. Cross trade message (`type=='Q'`) "indicate that Nasdaq has completed its cross process for a specific security". Neither trade type affects the state of the (visible) order book, but both should be included in volume calculations.
 
 | Field   | Type     | Description                                                                | Required?           | Default   |
@@ -139,19 +167,6 @@ Rows of the `trades` collection reflect two types of trades that are not capture
 | shares  | `Int`    | The number of shares traded.                                               | ✓                   |           |
 | cross   | `Int`    | The cross type: opening (`O`), close (`C`), halted (`H`) or intrday (`I`). | ✓                   |           |
 
-### MongoDB
-For small to medium sized databases, `TotalViewITCH` also provides a MongoDB backend. To set up a MongoDB database with Docker, run the following command in a terminal:
-```bash
-docker run -p 27017:27017 --volume path/to/data/db:/data/db mongo:latest
-```
-This command exposes the database to your local machine on port `27017`. Now you
-can populate the database in Julia:
-```julia
-using TotalViewITCH: Parser, MongoDB
-backend = MongoDB("mongodb://localhost:27017", "test")
-parser = Parser{MongoDB}(backend)
-parser("./data/bin/S031413-v41.txt", Date("2013-03-14"), ["A"], 4.1)
-```
 
 ## Data Version Support
 `TotalViewITCH.jl` supports versions `4.1` and `5.0` of the TotalView-ITCH file
