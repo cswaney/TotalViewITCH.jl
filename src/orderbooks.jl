@@ -16,18 +16,18 @@ end
 
 import Base.==
 function (==)(a::Order, b::Order)
-    a.ticker == b.ticker || return false 
-    a.side == b.side || return false 
-    a.price == b.price || return false 
+    a.ticker == b.ticker || return false
+    a.side == b.side || return false
+    a.price == b.price || return false
     a.shares == b.shares || return false
-    
+
     return true
 end
 
 function add!(orders::Dict{Int,Order}, message::OrderMessage)
     """
         add_order!(orders::Dict, message::OrderMessage)
-    
+
     Add an order to an order collection based on a new message.
     """
     !(message.type in ['A', 'F']) && throw(ArgumentError("Unable to add order (invalid message type $(message.type))"))
@@ -45,7 +45,7 @@ end
 function update!(orders::Dict{Int,Order}, message::OrderMessage)
     """
         `update!(orders::Dict{Int,Order}, message::OrderMessage)`
-    
+
     Find and update an order from a collection of orders based on a new message.
     """
     if haskey(orders, message.refno)
@@ -89,6 +89,17 @@ function Book(ticker)
     return Book(SortedDict{Int,Int}(Reverse), SortedDict{Int,Int}(Forward), -1, -1, ticker, nothing)
 end
 
+function Base.copy(book::Book)
+    return Book(
+        copy(book.bids),
+        copy(book.asks),
+        book.sec,
+        book.nano,
+        book.ticker,
+        book.nlevels,
+    )
+end
+
 function to_csv(book::Book)
     n = book.nlevels
     nbids = length(book.bids)
@@ -111,7 +122,7 @@ end
 function update!(book::Book, message::OrderMessage)
     """
         `update(book::Book, message::OrderMessage)`
-    
+
     Update an order book from a new message.
     """
     book.ticker != message.ticker && throw(ArgumentError("Unable to update order book (book ticker ($(book.ticker)) doesn't match message ticker ($(message.ticker))"))

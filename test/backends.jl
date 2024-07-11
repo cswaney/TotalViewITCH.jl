@@ -50,9 +50,9 @@ end
 
     build(backend; force=true)
     @test insert(backend, [
-        AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100),
-        AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100)
-    ], "messages", "A", date) == 2
+            AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100),
+            AddMessage(date, 0, 0, 123456789, "A", 'B', 125, 100)
+        ], "messages", "A", date) == 2
     teardown(backend; force=true)
 
 end

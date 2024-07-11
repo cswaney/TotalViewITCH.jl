@@ -5,7 +5,7 @@ using Test
 
 
 @testset "Buffer.FileSystem" begin
-    
+
     date = Date("2017-02-27")
     nlevels = 3
     backend = FileSystem("./data", nlevels)

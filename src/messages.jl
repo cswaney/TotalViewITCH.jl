@@ -61,7 +61,7 @@ function to_csv(message::OrderMessage)
     return "$(message.date),$(message.sec),$(message.nano),$(message.type),$(message.ticker),$(message.side),$(message.price),$(message.shares),$(message.refno),$(message.newrefno),$(message.mpid)\n"
 end
 
-function OrderMessage(date, sec, nano, type; ticker = "-", side = '-', price = -1, shares = -1, refno = -1, newrefno = -1, mpid = "-")
+function OrderMessage(date, sec, nano, type; ticker="-", side='-', price=-1, shares=-1, refno=-1, newrefno=-1, mpid="-")
     return OrderMessage(date, sec, nano, type, ticker, side, price, shares, refno, newrefno, mpid)
 end
 
@@ -93,17 +93,17 @@ function split_message(message::OrderMessage)
         message.sec,
         message.nano,
         'D',
-        refno = message.refno  # newrefno = -1 by default
+        refno=message.refno  # newrefno = -1 by default
     )
     add_message = OrderMessage(
         message.date,
         message.sec,
         message.nano,
         'G',  # special type for add messages derived from replace
-        price = message.price,
-        shares = message.shares,
-        refno = message.refno,
-        newrefno = message.newrefno
+        price=message.price,
+        shares=message.shares,
+        refno=message.refno,
+        newrefno=message.newrefno
     )
     return del_message, add_message
 end
@@ -203,7 +203,7 @@ mutable struct NOIIMessage <: AbstractMessage
     cross::Char
 end
 
-function NOIIMessage(date, sec, nano; type = '-', ticker = "-", paired = -1, imbalance = -1, direction = '-', far = -1, near = -1, current = -1, cross = '-')
+function NOIIMessage(date, sec, nano; type='-', ticker="-", paired=-1, imbalance=-1, direction='-', far=-1, near=-1, current=-1, cross='-')
     return NOIIMessage(date, sec, nano, type, ticker, paired, imbalance, direction, far, near, current, cross)
 end
 
@@ -227,7 +227,7 @@ mutable struct TradeMessage <: AbstractMessage
     shares::Int
 end
 
-function TradeMessage(date, sec, nano; type = '-', ticker = "-", side = '-', price = -1, shares = -1)
+function TradeMessage(date, sec, nano; type='-', ticker="-", side='-', price=-1, shares=-1)
     return TradeMessage(date, sec, nano, type, ticker, side, price, shares)
 end
 

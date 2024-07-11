@@ -225,7 +225,7 @@ end
 
 function insert(b::FileSystem, items, collection, ticker, date)
     if length(items) > 0
-        if collection in ["messages", "orderbooks"]
+        if collection in ["messages", "orderbooks", "trades"]
             if !isdir(joinpath(b.url, collection, "ticker=$ticker"))
                 mkdir(joinpath(b.url, collection, "ticker=$ticker"))
             end
@@ -239,7 +239,7 @@ function insert(b::FileSystem, items, collection, ticker, date)
         end
 
         try
-            if collection in ["messages", "orderbooks"]
+            if collection in ["messages", "orderbooks", "trades"]
                 filepath = joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv")
                 if isfile(filepath)
                     open(filepath, "a+") do io
@@ -260,7 +260,7 @@ function insert(b::FileSystem, items, collection, ticker, date)
                 else
                     open(filepath, "w") do io
                         write(io, join(b.headers[Symbol(collection)], ",") * "\n")
-                        write(io, b.headers[Symbol(collection)] * "\n" * join(textify.(items), ""))
+                        write(io, join(textify.(items), ""))
                     end
                 end
             end
@@ -277,28 +277,6 @@ function insert(b::FileSystem, items, collection, ticker, date)
 
     return 0
 end
-
-const types = Dict(
-    "messages" => Dict(
-        "date" => Date,
-        "sec" => Int64,
-        "nano" => Int64,
-        "type" => Char,
-        "ticker" => String7,
-        "side" => Char,
-        "price" => Int64,
-        "shares" => Int64,
-        "refno" => Int64,
-        "newrefno" => Int64,
-        "mpid" => String7,
-    ),
-    "orderbooks" => Dict(
-    ),
-    "noii" => Dict(
-    ),
-    "trades" => Dict(
-    )
-)
 
 function find(b::FileSystem, collection, ticker, date)
     try
@@ -332,16 +310,26 @@ function clean(date::Date, ticker::String, b::FileSystem)
     end
 
     try
-        rm(joinpath(b.url, "noii", "ticker=$ticker", "date=$date"), recursive=true)
-    catch
-        @warn "No noii message data found for ticker=$ticker, date=$date"
-    end
-
-    try
         rm(joinpath(b.url, "orderbooks", "ticker=$ticker", "date=$date"), recursive=true)
     catch
         @warn "No book data found for ticker=$ticker, date=$date"
     end
+end
+
+function clean(date::Date, b::FileSystem)
+    collections = ["messages", "orderbooks", "trades"]
+    for collection in collections
+        p = joinpath(b.url, collection)
+        for ticker_dir in readdir(p)
+            p = joinpath(b.url, collection, ticker_dir, "date=$date")
+            if isdir(p)
+                rm(p, recursive=true)
+            else
+                @warn "No $collection data found for ticker=$ticker, date=$date"
+            end
+        end
+    end
+    clean_globals(date, b)
 end
 
 function clean(ticker::String, b::FileSystem)
@@ -353,6 +341,15 @@ function clean(ticker::String, b::FileSystem)
         else
             @warn "No $collection data found for ticker=$ticker"
         end
+    end
+end
+
+function clean_globals(date::Date, b::FileSystem)
+    p = joinpath(b.url, "noii", "date=$date")
+    if isdir(p)
+        rm(p, recursive=true)
+    else
+        @warn "No NOII data found for date=$date"
     end
 end
 
@@ -581,16 +578,81 @@ function clean(date::Date, ticker::String, b::MongoDB)
             )
         )
         Mongoc.delete_many(
-            client[b.db_name]["noii"],
+            client[b.db_name]["books"],
             Mongoc.BSON(
                 "ticker" => ticker,
+                "date" => string(date)
+            )
+        )
+    catch e
+        throw(e)
+    end
+end
+
+function clean(date::Date, b::MongoDB)
+    client = Mongoc.Client(b.url)
+    try
+        Mongoc.delete_many(
+            client[b.db_name]["messages"],
+            Mongoc.BSON(
+                "date" => string(date)
+            )
+        )
+        Mongoc.delete_many(
+            client[b.db_name]["trades"],
+            Mongoc.BSON(
                 "date" => string(date)
             )
         )
         Mongoc.delete_many(
             client[b.db_name]["books"],
             Mongoc.BSON(
+                "date" => string(date)
+            )
+        )
+        Mongoc.delete_many(
+            client[b.db_name]["noii"],
+            Mongoc.BSON(
+                "date" => string(date)
+            )
+        )
+    catch e
+        throw(e)
+    end
+end
+
+function clean(ticker::String, b::MongoDB)
+    client = Mongoc.Client(b.url)
+    try
+        Mongoc.delete_many(
+            client[b.db_name]["messages"],
+            Mongoc.BSON(
                 "ticker" => ticker,
+            )
+        )
+        Mongoc.delete_many(
+            client[b.db_name]["trades"],
+            Mongoc.BSON(
+                "ticker" => ticker,
+            )
+        )
+        Mongoc.delete_many(
+            client[b.db_name]["books"],
+            Mongoc.BSON(
+                "ticker" => ticker,
+            )
+        )
+    catch e
+        throw(e)
+    end
+end
+
+function clean_globals(date::Date, b::MongoDB)
+    client = Mongoc.Client(b.url)
+    try
+        Mongoc.delete_many(
+            client[b.db_name]["noii"],
+            Mongoc.BSON(
                 "date" => string(date)
             )
         )
