@@ -264,9 +264,11 @@ Finds all data for the provided collection, ticker and date and returns a `DataF
 function find(b::FileSystem, collection, ticker, date)
     try
         if collection in ["messages", "orderbooks"]
-            df = CSV.File(joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv"), header=b.headers[collection]) |> DataFrame
+            # df = CSV.File(joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv"), header=b.headers[Symbol(collection)]) |> DataFrame
+            df = CSV.File(joinpath(b.url, collection, "ticker=$ticker", "date=$date", "partition.csv")) |> DataFrame
         else
-            df = CSV.File(joinpath(b.url, collection, "date=$date", "partition.csv"), header=b.headers[collection]) |> DataFrame
+            # df = CSV.File(joinpath(b.url, collection, "date=$date", "partition.csv"), header=b.headers[Symbol(collection)]) |> DataFrame
+            df = CSV.File(joinpath(b.url, collection, "date=$date", "partition.csv")) |> DataFrame
         end
 
         return df
