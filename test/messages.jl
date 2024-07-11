@@ -6,7 +6,7 @@ using Dates
 date = Date("2010-01-01")
 
 @testset "Messages" begin
-    
+
     @test_throws ArgumentError split_message(AddMessage(date, 0, 0, 0, "AAPL", 'B', 125, 100; type='A', mpid="-"))
 
     @test split_message(ReplaceMessage(date, 0, 0, 123456789, 987654321, 100, 125)) == (

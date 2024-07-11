@@ -1,5 +1,5 @@
-using Pkg
-Pkg.activate(".")
+# using Pkg
+# Pkg.activate(".")
 using Documenter, TotalViewITCH
 
 makedocs(
@@ -13,4 +13,9 @@ makedocs(
 
 deploydocs(
     repo="github.com/cswaney/TotalViewITCH.jl.git",
+    devbranch="master",
+    devurl="dev",
+    push_preview=true,
+    versions=["stable" => "v^", "v#.#.#", "dev" => "dev"],
+
 )
