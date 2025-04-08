@@ -12,6 +12,7 @@ using Dates
 
 # Storing results in local file system
 parser = Parser{FileSystem}("./data/test")
+# TotalViewITCH.build(parser.backend) # uncomment if first time running
 parser("./data/bin/S031413-v41.txt", Date("2013-03-14"), ["A", "B"], 4.1)
 df = find(parser.backend, "messages", "A", Date("2013-03-14"))
 
